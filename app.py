@@ -10,6 +10,7 @@ app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 #this is shimu
 # 配置文件上传
+
 data_files = UploadSet('datafiles', DATA)
 app.config['UPLOADED_DATAFILES_DEST'] = 'data'  # 设置文件存储位置
 configure_uploads(app, data_files)
