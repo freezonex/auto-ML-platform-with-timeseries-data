@@ -12,58 +12,81 @@
     <div class="flex justify-center items-center mt-5">
         <h1 class="text-3xl text-gray-700 font-bold">Upload Train data</h1>
     </div>
-     <div class="flex justify-center items-center mt-5">
-        <form enctype="multipart/form-data" class="mb-4 ">
-            <label class="block">
-                <span class="sr-only">Choose profile photo</span>
-                <!-- Hidden file input to associate with the custom file button -->
-                <input type="file" name="datafile" class="file:mr-4 file:py-2 file:px-4
-                    file:cursor-pointer file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-green-50 file:text-green-700
-                    hover:file:bg-green-100 file-input
-                    hidden" />
-                <!-- Custom file button -->
-                <div class="mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
-                    Choose Training Data
-                </div>
-            </label>
-            <div id="file-name-display" class="text-sm text-gray-600 mt-1"></div>
-            <input type="submit" value="Upload" class="ml-12 mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
-        </form>
-     </div>
+     <div class="flex flex-col justify-center items-center ">
+        <div class="flex justify-center items-center mt-5">
+            <form enctype="multipart/form-data" class="mb-4 ">
+                <label class="block">
+                    <span class="sr-only">Choose profile photo</span>
+                    <!-- Hidden file input to associate with the custom file button -->
+                    <input type="file" name="datafile" class="file:mr-4 file:py-2 file:px-4
+                        file:cursor-pointer file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-50 file:text-green-700
+                        hover:file:bg-green-100 file-input
+                        hidden" />
+                    <!-- Custom file button -->
+                    <div class="mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
+                        Choose Training Data
+                    </div>
+                </label>
+                <div id="file-name-display" class="text-sm text-gray-600 mt-1"></div>
+                <input type="submit" value="Upload" class="ml-12 mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
+            </form>
+         </div>
+    </div>
 
     <div id="message" style="display:none;" class="hidden p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg"></div><!-- 消息显示区域 -->
-    <button id="display-btn" style="display:none;">Display Data</button> <!-- 显示数据按钮 -->
-    <div id="data-display" style="display:none;"></div> <!-- 数据显示区域 -->
-    <button id="analyze-btn" style="display:none;">Start Data Analysis</button> <!-- 数据分析按钮 -->
-    <div id="learning-options" style="display:none;">
-        <button id="unsupervised-btn">Unsupervised Learning</button>
-        <button id="supervised-btn">Supervised Learning</button>
-    </div>
-    <div id="supervised-options" style="display:none;">
-        <!-- Label for specifying the label column -->
-        <label for="label-input">Specify Label:</label>
-        <input type="text" id="label-input" placeholder="Enter the label column name">
+    <div class="flex flex-col justify-center items-center mt-12">
+        <button id="display-btn" class="flex justify-center items-center hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">
+        Display Data
+        </button> <!-- 显示数据按钮 -->
 
-        <!-- Label for specifying features to exclude -->
-        <label for="exclude-features-input">Exclude Features:</label>
-        <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas">
-        <button id="submit-supervised-btn">Set Options</button>
+        <div id="data-display" class="hidden p-6 border border-gray-300 rounded shadow-lg mt-4 max-h-96 overflow-auto leading-relaxed">
+        </div>
+         <!-- 数据显示区域 -->
+
+        <button id="analyze-btn" class="flex justify-center items-center hidden mt-5 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Data Analysis</button> <!-- 数据分析按钮 -->
+    </div>
+
+   <div class="flex flex-col justify-center items-center mt-12"> <!-- Ensures full screen height and centers children -->
+        <div id="learning-options" class="hidden flex flex-col items-center space-y-4">
+            <button id="unsupervised-btn" class="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Unsupervised Learning</button>
+            <button id="supervised-btn" class="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Supervised Learning</button>
+        </div>
+    </div>
+
+    <div id="supervised-options" class="hidden flex flex-col items-center space-y-4 mt-4">
+        <div class="flex flex-col items-center w-full">
+            <label for="label-input" class="block text-sm font-medium text-gray-700">
+                Specify Label:
+            </label>
+            <input type="text" id="label-input" placeholder="Enter the label column name" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+        </div>
+
+        <div class="flex flex-col items-center w-full">
+            <label for="exclude-features-input" class="block text-sm font-medium text-gray-700">
+                Exclude Features:
+            </label>
+            <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+        </div>
+
+        <button id="submit-supervised-btn" class="px-4 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 rounded">
+            Set Options
+        </button>
     </div>
     <!-- Visualization button, initially hidden -->
     <button id="visualization" style="display:none;">Visualization Options</button>
 
     <!-- Analysis buttons, initially hidden -->
     <div id="analysis-options" style="display:none;">
-        <button id="histogram-analysis">Histogram Analysis</button>
-        <button id="scatter-analysis">Scatter Analysis</button>
-        <button id="correlation-analysis">Correlation Analysis</button>
-        <button id="start-ml">Start Auto Machine Learning</button>
+        <button id="histogram-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Histogram Analysis</button>
+        <button id="scatter-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Scatter Analysis</button>
+        <button id="correlation-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Correlation Analysis</button>
+        <button id="start-ml" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Auto Machine Learning</button>
     </div>
     <div id="ml-options" style="display:none;">
-        <button id="classification">Classification</button>
-        <button id="regression">Regression</button>
+        <button id="classification" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Classification</button>
+        <button id="regression" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Regression</button>
     </div>
     <img id="analysis-image" src="" alt="Analysis Image" style="max-width: 100%; height: auto; display: none;">
     <div id="summary" style="display:none;">
@@ -71,7 +94,7 @@
         <p><strong>Label:</strong> <span id="summary-label"></span></p>
         <p><strong>Excluded Features:</strong> <span id="summary-excluded-features"></span></p>
         <p><strong>Task Type:</strong> <span id="summary-task-type"></span></p>
-        <button id="confirm-training">Confirm and Start Training</button>
+        <button id="confirm-training" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Confirm and Start Training</button>
     </div>
     <button id="start-testing" style="display:none;">Start Testing</button>
     <div id="test-data-upload" style="display:none;">
@@ -84,12 +107,12 @@
     <div id="message1" style="display:none;"></div> <!-- 消息显示区域 -->
     <div id="upload-response">
         <input type="number" id="threshold-input" placeholder="Enter threshold (optional)" style="display: none;">
-        <button id="show-results" style="display:none;">Show Results</button>
-        <div id="result-buttons" style="display:none;">
+        <button id="show-results" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Show Results</button>
+        <div id="result-buttons" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">
             <!-- Result buttons -->
-            <button id="scatter-plot">Scatter Plot</button>
-            <button id="f1-score">F1 Score</button>
-            <button id="feature-analysis">Feature Analysis</button>
+            <button id="scatter-plot" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Scatter Plot</button>
+            <button id="f1-score" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">F1 Score</button>
+            <button id="feature-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Feature Analysis</button>
         </div>
         <img id="result-image" src="" alt="Result Image" style="max-width: 100%; height: auto; display: none;">
         <div id="evaluation-message" style="display:none;"></div> <!-- Ensure this is in your HTML -->
@@ -103,9 +126,12 @@
     
     
     <div id="modal" class="hidden fixed inset-0 overflow-y-auto">
-      <div class="flex items-end justify-center min-h-screen text-center">
-        <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all">
+  <div class="flex items-center justify-center min-h-screen text-center">
+    <!-- Background overlay -->
+    <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+
+    <!-- Modal content -->
+        <div class="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all">
           <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div class="mt-3 text-center sm:mt-0 sm:text-left">
@@ -122,6 +148,7 @@
         </div>
       </div>
     </div>
+
 
 </body>
 </html>

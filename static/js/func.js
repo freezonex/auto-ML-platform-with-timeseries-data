@@ -229,9 +229,17 @@ $(document).ready(function(){
         });
 
         $('.file-input').change(function() {
-        var fileName = $(this).val().split('\\').pop();
-        $('#file-name-display').text(fileName);
-    });
+            var fileName = $(this).val().split('\\').pop();
+            $('#file-name-display').text(fileName);
+        });
+
+        $('#display-btn').removeClass('hidden'); // To show
+        $('#data-display').removeClass('hidden'); // To show
+
+        // And to hide them again
+        $('#display-btn').addClass('hidden'); // To hide
+        $('#data-display').addClass('hidden'); // To hide
+
     });
 
 function toggleModal(title, message) {
