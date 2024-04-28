@@ -29,8 +29,10 @@
                         Choose Training Data
                     </div>
                 </label>
-                <div id="file-name-display" class="text-sm text-gray-600 mt-1"></div>
-                <input type="submit" value="Upload" class="ml-12 mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
+                <div id="file-name-display" class="flex justify-center items-center text-sm text-gray-600 mt-1"></div>
+                <div id="submit-btn" class="flex justify-center items-center mt-5">
+                    <input type="submit" value="Upload" class=" mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
+                </div>
             </form>
          </div>
     </div>
@@ -40,8 +42,8 @@
         <button id="display-btn" class="flex justify-center items-center hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">
         Display Data
         </button> <!-- 显示数据按钮 -->
-
-        <div id="data-display" class="hidden p-6 border border-gray-300 rounded shadow-lg mt-4 max-h-96 overflow-auto leading-relaxed">
+        <div id="data-display1" class="hidden w-3/4 overflow-auto">
+            <div id="data-display" class="hidden p-4 border border-gray-300 rounded shadow-lg mt-4 max-h-[80vh] overflow-auto"></div>
         </div>
          <!-- 数据显示区域 -->
 
@@ -69,54 +71,112 @@
             </label>
             <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
         </div>
-
-        <button id="submit-supervised-btn" class="px-4 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 rounded">
-            Set Options
-        </button>
+        <div id="submit-supervised-btn1" class="flex justify-center items-center">
+            <button id="submit-supervised-btn" class="px-4 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 rounded">
+                Set Options
+            </button>
+        </div>
     </div>
+
     <!-- Visualization button, initially hidden -->
-    <button id="visualization" style="display:none;">Visualization Options</button>
+    <div class="flex flex-col items-center justify-center">
+        <button id="visualization" class="hidden space-y-4 mt-4 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Visualization Options</button>
+    </div>
 
     <!-- Analysis buttons, initially hidden -->
-    <div id="analysis-options" style="display:none;">
-        <button id="histogram-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Histogram Analysis</button>
-        <button id="scatter-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Scatter Analysis</button>
-        <button id="correlation-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Correlation Analysis</button>
-        <button id="start-ml" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Auto Machine Learning</button>
-    </div>
-    <div id="ml-options" style="display:none;">
-        <button id="classification" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Classification</button>
-        <button id="regression" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Regression</button>
-    </div>
-    <img id="analysis-image" src="" alt="Analysis Image" style="max-width: 100%; height: auto; display: none;">
-    <div id="summary" style="display:none;">
-        <h3>Summary of Machine Learning Setup</h3>
-        <p><strong>Label:</strong> <span id="summary-label"></span></p>
-        <p><strong>Excluded Features:</strong> <span id="summary-excluded-features"></span></p>
-        <p><strong>Task Type:</strong> <span id="summary-task-type"></span></p>
-        <button id="confirm-training" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Confirm and Start Training</button>
-    </div>
-    <button id="start-testing" style="display:none;">Start Testing</button>
-    <div id="test-data-upload" style="display:none;">
-        <h2>Upload Test Data</h2>
-        <form id="test-data-form" enctype="multipart/form-data">
-            <input type="file" name="testdatafile" />
-            <input type="submit" value="Upload Test Data" />
-        </form>
-    </div>
-    <div id="message1" style="display:none;"></div> <!-- 消息显示区域 -->
-    <div id="upload-response">
-        <input type="number" id="threshold-input" placeholder="Enter threshold (optional)" style="display: none;">
-        <button id="show-results" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Show Results</button>
-        <div id="result-buttons" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">
-            <!-- Result buttons -->
-            <button id="scatter-plot" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Scatter Plot</button>
-            <button id="f1-score" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">F1 Score</button>
-            <button id="feature-analysis" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Feature Analysis</button>
+    <div id="analysis-options" class="flex flex-col items-center justify-center hidden">
+        <div  class="flex flex-col items-center justify-center mt-5 ">
+            <button id="histogram-analysis" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Histogram Analysis</button>
         </div>
-        <img id="result-image" src="" alt="Result Image" style="max-width: 100%; height: auto; display: none;">
-        <div id="evaluation-message" style="display:none;"></div> <!-- Ensure this is in your HTML -->
+        <div class="flex flex-col items-center justify-center  mt-5">
+            <button id="scatter-analysis" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Scatter Analysis</button>
+        </div>
+        <div class="flex flex-col items-center justify-center  mt-5 ">
+            <button id="correlation-analysis" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Correlation Analysis</button>
+        </div>
+        <div class="flex flex-col items-center justify-center  mt-5">
+             <button id="start-ml" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Auto Machine Learning</button>
+        </div>
     </div>
+
+    <div id="ml-options" class="flex flex-col items-center justify-center hidden">
+        <div class="flex flex-col items-center justify-center mt-5">
+            <button id="classification" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Classification</button>
+        </div>
+        <div class="flex flex-col items-center justify-center mt-5">
+            <button id="regression" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Regression</button>
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-center mt-6" >
+        <img id="analysis-image" src="" alt="Analysis Image" style="max-width: 100%; height: auto; display: none;">
+    </div>
+
+   <div id="summary" class="flex flex-col items-center justify-center hidden p-6  rounded-lg shadow-xl border border-gray-200 mt-8">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Summary of Machine Learning Setup</h3>
+        <p class="text-md text-gray-700"><strong>Label:</strong> <span id="summary-label" class="text-blue-600"></span></p>
+        <p class="text-md text-gray-700"><strong>Excluded Features:</strong> <span id="summary-excluded-features" class="text-blue-600"></span></p>
+        <p class="text-md text-gray-700"><strong>Task Type:</strong> <span id="summary-task-type" class="text-blue-600"></span></p>
+        <div class="flex flex-col items-center justify-center mt-6">
+            <button id="confirm-training" class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out mt-4">
+                Confirm and Start Training
+            </button>
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-center mt-5 ">
+        <button id="start-testing" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Testing</button>
+    </div>
+
+
+    <div id="test-data-upload" class="hidden flex flex-col justify-center items-center ">
+
+        <div class="flex justify-center items-center mt-5">
+            <h2 class="text-3xl text-gray-700 font-bold">Upload Test data</h2>
+        </div>
+
+        <div class="flex justify-center items-center mt-5">
+            <form id="test-data-form" enctype="multipart/form-data" class="mb-4 ">
+                <label class="block">
+                    <span class="sr-only">testdatafile</span>
+                    <!-- Hidden file input to associate with the custom file button -->
+                    <input type="file" name="testdatafile" class="file:mr-4 file:py-2 file:px-4
+                        file:cursor-pointer file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-50 file:text-green-700
+                        hover:file:bg-green-100 file-input2
+                        hidden" />
+                    <!-- Custom file button -->
+                    <div class="mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
+                        Choose Test Data
+                    </div>
+                </label>
+                  <div id="file-name-display2" class="flex justify-center items-center text-sm text-gray-600 mt-1"></div>
+                <div id="submit-btn2" class="flex justify-center items-center mt-5">
+                    <input type="submit" value="Upload" class=" mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
+                </div>
+            </form>
+         </div>
+    </div>
+
+
+    <div id="message1" style="display:none;" class="hidden p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg"></div><!-- 消息显示区域 -->
+
+    <div id="upload-response" class="flex flex-col items-center justify-center space-y-4 mt-4">
+        <input type="number" id="threshold-input" class="hidden p-2 w-full max-w-xs border border-gray-300 rounded shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter threshold (optional)">
+
+        <button id="show-results" class="hidden px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">Show Results</button>
+
+        <div id="result-buttons" class="hidden flex justify-center space-x-4">
+            <button id="scatter-plot" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">Scatter Plot</button>
+            <button id="f1-score" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">F1 Score</button>
+            <button id="feature-analysis" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">Feature Analysis</button>
+        </div>
+
+        <img id="result-image" class="hidden max-w-full h-auto" src="" alt="Result Image">
+        <div id="evaluation-message" class="hidden text-sm text-gray-500"></div>
+    </div>
+
 
     <div class="fixed bottom-0 right-0 p-4">
       <img src="static/gouzi.gif" alt="Descriptive Alt Text">

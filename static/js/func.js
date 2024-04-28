@@ -50,6 +50,7 @@ $(document).ready(function(){
                 url: "/display-data",
                 type: "GET",
                 success: function(response) {
+                    $("#data-display1").html(response).show();
                     $("#data-display").html(response).show();
                 },
                 error: function() {
@@ -57,7 +58,6 @@ $(document).ready(function(){
                 }
             });
         });
-
 
         $("#analyze-btn").click(function(){
             $.ajax({
@@ -195,6 +195,7 @@ $(document).ready(function(){
                 }
             });
         });
+
         $(document).ready(function() {
             $("#show-results").click(function() {
                 var threshold = $("#threshold-input").val(); // Get the optional threshold value
@@ -232,13 +233,17 @@ $(document).ready(function(){
             var fileName = $(this).val().split('\\').pop();
             $('#file-name-display').text(fileName);
         });
-
-        $('#display-btn').removeClass('hidden'); // To show
-        $('#data-display').removeClass('hidden'); // To show
-
-        // And to hide them again
-        $('#display-btn').addClass('hidden'); // To hide
-        $('#data-display').addClass('hidden'); // To hide
+//
+        $('.file-input2').change(function() {
+            var fileName = $(this).val().split('\\').pop();
+            $('#file-name-display2').text(fileName);
+        });
+//        $('#display-btn').removeClass('hidden'); // To show
+//        $('#data-display').removeClass('hidden'); // To show
+//
+//        // And to hide them again
+//        $('#display-btn').addClass('hidden'); // To hide
+//        $('#data-display').addClass('hidden'); // To hide
 
     });
 

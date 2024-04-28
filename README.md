@@ -44,6 +44,7 @@ pip install flask matplotlib pandas seaborn scikit-learn xgboost joblib
      - `op_setting_3`
      - `sensor_16`
      - `sensor_19`
+   -  add like this `engine_no, time_in_cycles, op_setting_3, sensor_16, sensor_19`
 
 6. **Visualization and AutoML**
    - Access visualization options in the interface.

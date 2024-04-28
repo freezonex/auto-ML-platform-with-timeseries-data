@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pickle
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
-#this is shimu
+
 # 配置文件上传
 
 data_files = UploadSet('datafiles', DATA)
