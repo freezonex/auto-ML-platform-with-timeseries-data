@@ -3,307 +3,212 @@
 <head>
     <title>Upload your data</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script>
-    $(document).ready(function(){
-        // Function to update the image source and display the analysis image
-        function updateAnalysisImage(imageUrl) {
-            $('#analysis-image').hide();
-            $('#analysis-image').on('load', function() {
-                $(this).show();
-            }).on('error', function() {
-                alert('Failed to load image, please try again.');
-                $(this).hide();
-            });
-            $('#analysis-image').attr('src', imageUrl);
-        }
-        function updateResultImage(imageUrl) {
-            console.log("Function called with URL: ", imageUrl);
-            $('#result-image').hide();
-            $('#result-image').on('load', function() {
-                $(this).show();
-            }).on('error', function() {
-                alert('Failed to load image, please try again.');
-                $(this).hide();
-            });
-            $('#result-image').attr('src', imageUrl);
-        }
-
-
-        $("form").submit(function(event){
-            event.preventDefault();  // 阻止表单默认提交
-            var formData = new FormData(this);
-            $.ajax({
-                url: '/upload',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                success: function(response) {
-                    $("#message").text(response.message).show();  // 显示消息
-                    setTimeout(function() { $("#message").hide(); }, 3000); // 3秒后隐藏消息
-                    $("#display-btn").show(); // 显示"显示数据"按钮
-                    $("#analyze-btn").show(); // 显示"开始数据分析"按钮
-                },
-                error: function() {
-                    $("#message").text("Upload failed").show();
-                    setTimeout(function() { $("#message").hide(); }, 3000);
-                }
-            });
-        });
-
-        $("#display-btn").click(function(){
-            $.ajax({
-                url: "/display-data",
-                type: "GET",
-                success: function(response) {
-                    $("#data-display").html(response).show();
-                },
-                error: function() {
-                    $("#data-display").text("Error loading data.").show();
-                }
-            });
-        });
-
-
-        $("#analyze-btn").click(function(){
-            $.ajax({
-                url: "/pre-analyze",
-                type: "GET",
-                success: function(response) {
-                    alert(response.message);
-                    $("#learning-options").show(); // 显示学习类型选项
-                }
-            });
-        });
-
-        $("#unsupervised-btn").click(function(){
-            // Handle unsupervised learning choice
-            alert("Unsupervised learning is currently not supported.");
-        });
-
-        $("#supervised-btn").click(function(){
-            // Handle supervised learning choice
-            alert("Please proceed with supervised learning.");
-            $("#supervised-options").show(); // 显示学习类型选项
-        });
-
-        $("#submit-supervised-btn").click(function(){
-            var labelName = $("#label-input").val();
-            var excludeInput = $("#exclude-features-input").val();
-            var excludedFeatures = excludeInput ? excludeInput.split(",").map(function(item) {
-                return item.trim();
-            }).filter(function(item) { return item !== ""; }) : []; // 过滤掉任何空字符串
-
-            $.ajax({
-                url: "/set-supervised-options",
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({label: labelName, excludedFeatures: excludedFeatures}),
-                success: function(response) {
-                    alert(response.message);
-                    $("#visualization").show();
-                },
-                error: function() {
-                    alert("Error setting supervised options.");
-                }
-            });
-        });
-        // Show analysis options when the visualization button is clicked
-        $("#visualization").click(function(){
-            $("#analysis-options").show(); // Show the buttons for different analyses
-        });
-
-        // Click handler for histogram analysis
-         $("#histogram-analysis").click(function() {
-            var d = new Date(); // To prevent image caching
-            updateAnalysisImage("/generate_histogram?" + d.getTime());
-        });
-
-        // Click handler for scatter analysis
-        $("#scatter-analysis").click(function() {
-            var d = new Date(); // To prevent image caching
-            updateAnalysisImage("/generate_scatter?" + d.getTime());
-        });
-
-        // Click handler for correlation analysis
-        $("#correlation-analysis").click(function() {
-            var d = new Date(); // To prevent image caching
-            updateAnalysisImage("/generate_correlation?" + d.getTime());
-        });
-        $("#start-ml").click(function() {
-            $("#analysis-image").hide();  // Hide the image
-            $("#ml-options").show();  // Show options for ML type
-        });
-
-
-        // Handlers for choosing ML type and sending data to the server
-        $("#classification, #regression").click(function() {
-            var mode = $(this).attr('id');
-            $.ajax({
-                url: '/start_ml',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({mode: mode}),
-                success: function(response) {
-                    // Display the summary
-                    $("#summary-label").text(response.label);
-                    $("#summary-excluded-features").text(response.excluded_features.join(', '));
-                    $("#summary-task-type").text(response.mode);
-                    $("#summary").show();
-                    alert('Model training started in ' + mode + ' mode.');
-                },
-                error: function() {
-                    alert('Error starting machine learning.');
-                }
-            });
-        });
-        $("#confirm-training").click(function() {
-            var mode = $("#summary-task-type").text();  // Retrieve the mode from the summary
-            $.ajax({
-                url: '/confirm_training',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({mode: mode}),
-                success: function(response) {
-                    alert('Training completed successfully!');
-                    $("#start-testing").show();
-                },
-                error: function() {
-                    alert('Error during training.');
-                }
-            });
-        });
-        $("#start-testing").click(function() {
-            $("#test-data-upload").show();  // Show the test data upload section
-        });
-
-        $("#test-data-form").submit(function(event) {
-            event.preventDefault();  // Prevent the default form submission
-            var formData = new FormData(this);
-            $.ajax({
-                url: '/upload-test-data',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                success: function(response) {
-                    $("#message1").text(response.message).show();  // 显示消息
-                    setTimeout(function() {
-                        $("#message1").hide();
-                        $("#threshold-input").val('');  // Clear and show the threshold input
-                        $("#threshold-input").show();
-                        $("#show-results").show();
-                    }, 3000);
-
-                },
-                error: function() {
-                    $("#test-summary").text("Test data upload failed.").show();
-                }
-            });
-        });
-        $(document).ready(function() {
-            $("#show-results").click(function() {
-                var threshold = $("#threshold-input").val(); // Get the optional threshold value
-                $(this).hide();  // Optionally hide the button after clicking
-                $.ajax({
-                    url: '/evaluate',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ threshold: threshold }),
-                    success: function(response) {
-                        $("#result-buttons").show();  // Show result buttons on successful evaluation
-                        $("#evaluation-message").text(response.message).show();  // Ensure this element exists
-                    },
-                    error: function() {
-                        $("#evaluation-message").text("Evaluation failed. Please try again.").show();
-                    }
-                });
-            });
-        });
-
-
-        // Event handlers for result buttons
-        $("#scatter-plot").click(function() {
-            updateResultImage('/static/result_images/scatter.png'); // Path to the scatter plot image
-        });
-
-        $("#f1-score").click(function() {
-            updateResultImage('/static/result_images/confusion_matrix.png'); // Path to the confusion matrix image
-        });
-
-        $("#feature-analysis").click(function() {
-            updateResultImage('/static/result_images/importance.png'); // Path to the feature importance image
-        });
-    });
-    </script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="/static/js/func.js"></script>
 </head>
-<body>
-    <h1>Upload Train data</h1>
-    <form enctype="multipart/form-data">
-        <input type="file" name="datafile" />
-        <input type="submit" value="Upload" />
-    </form>
-    <div id="message" style="display:none;"></div> <!-- 消息显示区域 -->
-    <button id="display-btn" style="display:none;">Display Data</button> <!-- 显示数据按钮 -->
-    <div id="data-display" style="display:none;"></div> <!-- 数据显示区域 -->
-    <button id="analyze-btn" style="display:none;">Start Data Analysis</button> <!-- 数据分析按钮 -->
-    <div id="learning-options" style="display:none;">
-        <button id="unsupervised-btn">Unsupervised Learning</button>
-        <button id="supervised-btn">Supervised Learning</button>
-    </div>
-    <div id="supervised-options" style="display:none;">
-        <!-- Label for specifying the label column -->
-        <label for="label-input">Specify Label:</label>
-        <input type="text" id="label-input" placeholder="Enter the label column name">
 
-        <!-- Label for specifying features to exclude -->
-        <label for="exclude-features-input">Exclude Features:</label>
-        <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas">
-        <button id="submit-supervised-btn">Set Options</button>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+
+    <div class="flex justify-center items-center mt-5">
+        <h1 class="text-3xl text-gray-700 font-bold">Upload Train data</h1>
     </div>
+     <div class="flex flex-col justify-center items-center ">
+        <div class="flex justify-center items-center mt-5">
+            <form enctype="multipart/form-data" class="mb-4 ">
+                <label class="block">
+                    <span class="sr-only">Choose profile photo</span>
+                    <!-- Hidden file input to associate with the custom file button -->
+                    <input type="file" name="datafile" class="file:mr-4 file:py-2 file:px-4
+                        file:cursor-pointer file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-50 file:text-green-700
+                        hover:file:bg-green-100 file-input
+                        hidden" />
+                    <!-- Custom file button -->
+                    <div class="mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
+                        Choose Training Data
+                    </div>
+                </label>
+                <div id="file-name-display" class="flex justify-center items-center text-sm text-gray-600 mt-1"></div>
+                <div id="submit-btn" class="flex justify-center items-center mt-5">
+                    <input type="submit" value="Upload" class=" mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
+                </div>
+            </form>
+         </div>
+    </div>
+
+    <div id="message" style="display:none;" class="hidden p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg"></div><!-- 消息显示区域 -->
+    <div class="flex flex-col justify-center items-center mt-12">
+        <button id="display-btn" class="flex justify-center items-center hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">
+        Display Data
+        </button> <!-- 显示数据按钮 -->
+        <div id="data-display1" class="hidden w-3/4 overflow-auto">
+            <div id="data-display" class="hidden p-4 border border-gray-300 rounded shadow-lg mt-4 max-h-[80vh] overflow-auto"></div>
+        </div>
+         <!-- 数据显示区域 -->
+
+        <button id="analyze-btn" class="flex justify-center items-center hidden mt-5 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Data Analysis</button> <!-- 数据分析按钮 -->
+    </div>
+
+   <div class="flex flex-col justify-center items-center mt-12"> <!-- Ensures full screen height and centers children -->
+        <div id="learning-options" class="hidden flex flex-col items-center space-y-4">
+            <button id="unsupervised-btn" class="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Unsupervised Learning</button>
+            <button id="supervised-btn" class="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Supervised Learning</button>
+        </div>
+    </div>
+
+    <div id="supervised-options" class="hidden flex flex-col items-center space-y-4 mt-4">
+        <div class="flex flex-col items-center w-full">
+            <label for="label-input" class="block text-sm font-medium text-gray-700">
+                Specify Label:
+            </label>
+            <input type="text" id="label-input" placeholder="Enter the label column name" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+        </div>
+
+        <div class="flex flex-col items-center w-full">
+            <label for="exclude-features-input" class="block text-sm font-medium text-gray-700">
+                Exclude Features:
+            </label>
+            <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+        </div>
+        <div id="submit-supervised-btn1" class="flex justify-center items-center">
+            <button id="submit-supervised-btn" class="px-4 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 rounded">
+                Set Options
+            </button>
+        </div>
+    </div>
+
     <!-- Visualization button, initially hidden -->
-    <button id="visualization" style="display:none;">Visualization Options</button>
+    <div class="flex flex-col items-center justify-center">
+        <button id="visualization" class="hidden space-y-4 mt-4 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Visualization Options</button>
+    </div>
 
     <!-- Analysis buttons, initially hidden -->
-    <div id="analysis-options" style="display:none;">
-        <button id="histogram-analysis">Histogram Analysis</button>
-        <button id="scatter-analysis">Scatter Analysis</button>
-        <button id="correlation-analysis">Correlation Analysis</button>
-        <button id="start-ml">Start Auto Machine Learning</button>
-    </div>
-    <div id="ml-options" style="display:none;">
-        <button id="classification">Classification</button>
-        <button id="regression">Regression</button>
-    </div>
-    <img id="analysis-image" src="" alt="Analysis Image" style="max-width: 100%; height: auto; display: none;">
-    <div id="summary" style="display:none;">
-        <h3>Summary of Machine Learning Setup</h3>
-        <p><strong>Label:</strong> <span id="summary-label"></span></p>
-        <p><strong>Excluded Features:</strong> <span id="summary-excluded-features"></span></p>
-        <p><strong>Task Type:</strong> <span id="summary-task-type"></span></p>
-        <button id="confirm-training">Confirm and Start Training</button>
-    </div>
-    <button id="start-testing" style="display:none;">Start Testing</button>
-    <div id="test-data-upload" style="display:none;">
-        <h2>Upload Test Data</h2>
-        <form id="test-data-form" enctype="multipart/form-data">
-            <input type="file" name="testdatafile" />
-            <input type="submit" value="Upload Test Data" />
-        </form>
-    </div>
-    <div id="message1" style="display:none;"></div> <!-- 消息显示区域 -->
-    <div id="upload-response">
-        <input type="number" id="threshold-input" placeholder="Enter threshold (optional)" style="display: none;">
-        <button id="show-results" style="display:none;">Show Results</button>
-        <div id="result-buttons" style="display:none;">
-            <!-- Result buttons -->
-            <button id="scatter-plot">Scatter Plot</button>
-            <button id="f1-score">F1 Score</button>
-            <button id="feature-analysis">Feature Analysis</button>
+    <div id="analysis-options" class="flex flex-col items-center justify-center hidden">
+        <div  class="flex flex-col items-center justify-center mt-5 ">
+            <button id="histogram-analysis" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Histogram Analysis</button>
         </div>
-        <img id="result-image" src="" alt="Result Image" style="max-width: 100%; height: auto; display: none;">
-        <div id="evaluation-message" style="display:none;"></div> <!-- Ensure this is in your HTML -->
+        <div class="flex flex-col items-center justify-center  mt-5">
+            <button id="scatter-analysis" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Scatter Analysis</button>
+        </div>
+        <div class="flex flex-col items-center justify-center  mt-5 ">
+            <button id="correlation-analysis" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Correlation Analysis</button>
+        </div>
+        <div class="flex flex-col items-center justify-center  mt-5">
+             <button id="start-ml" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Auto Machine Learning</button>
+        </div>
     </div>
+
+    <div id="ml-options" class="flex flex-col items-center justify-center hidden">
+        <div class="flex flex-col items-center justify-center mt-5">
+            <button id="classification" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Classification</button>
+        </div>
+        <div class="flex flex-col items-center justify-center mt-5">
+            <button id="regression" class=" px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Regression</button>
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-center mt-6" >
+        <img id="analysis-image" src="" alt="Analysis Image" style="max-width: 100%; height: auto; display: none;">
+    </div>
+
+   <div id="summary" class="flex flex-col items-center justify-center hidden p-6  rounded-lg shadow-xl border border-gray-200 mt-8">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Summary of Machine Learning Setup</h3>
+        <p class="text-md text-gray-700"><strong>Label:</strong> <span id="summary-label" class="text-blue-600"></span></p>
+        <p class="text-md text-gray-700"><strong>Excluded Features:</strong> <span id="summary-excluded-features" class="text-blue-600"></span></p>
+        <p class="text-md text-gray-700"><strong>Task Type:</strong> <span id="summary-task-type" class="text-blue-600"></span></p>
+        <div class="flex flex-col items-center justify-center mt-6">
+            <button id="confirm-training" class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out mt-4">
+                Confirm and Start Training
+            </button>
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-center mt-5 ">
+        <button id="start-testing" class="hidden px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Testing</button>
+    </div>
+
+
+    <div id="test-data-upload" class="hidden flex flex-col justify-center items-center ">
+
+        <div class="flex justify-center items-center mt-5">
+            <h2 class="text-3xl text-gray-700 font-bold">Upload Test data</h2>
+        </div>
+
+        <div class="flex justify-center items-center mt-5">
+            <form id="test-data-form" enctype="multipart/form-data" class="mb-4 ">
+                <label class="block">
+                    <span class="sr-only">testdatafile</span>
+                    <!-- Hidden file input to associate with the custom file button -->
+                    <input type="file" name="testdatafile" class="file:mr-4 file:py-2 file:px-4
+                        file:cursor-pointer file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-50 file:text-green-700
+                        hover:file:bg-green-100 file-input2
+                        hidden" />
+                    <!-- Custom file button -->
+                    <div class="mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
+                        Choose Test Data
+                    </div>
+                </label>
+                  <div id="file-name-display2" class="flex justify-center items-center text-sm text-gray-600 mt-1"></div>
+                <div id="submit-btn2" class="flex justify-center items-center mt-5">
+                    <input type="submit" value="Upload" class=" mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer"/>
+                </div>
+            </form>
+         </div>
+    </div>
+
+
+    <div id="message1" style="display:none;" class="hidden p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg"></div><!-- 消息显示区域 -->
+
+    <div id="upload-response" class="flex flex-col items-center justify-center space-y-4 mt-4">
+        <input type="number" id="threshold-input" class="hidden p-2 w-full max-w-xs border border-gray-300 rounded shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter threshold (optional)">
+
+        <button id="show-results" class="hidden px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">Show Results</button>
+
+        <div id="result-buttons" class="hidden flex justify-center space-x-4">
+            <button id="scatter-plot" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">Scatter Plot</button>
+            <button id="f1-score" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">F1 Score</button>
+            <button id="feature-analysis" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:bg-blue-700 transition duration-150 ease-in-out">Feature Analysis</button>
+        </div>
+
+        <img id="result-image" class="hidden max-w-full h-auto" src="" alt="Result Image">
+        <div id="evaluation-message" class="hidden text-sm text-gray-500"></div>
+    </div>
+
+
+    <div class="fixed bottom-0 right-0 p-4">
+      <img src="static/gouzi.gif" alt="Descriptive Alt Text">
+    </div>
+    
+
+    
+    
+    <div id="modal" class="hidden fixed inset-0 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen text-center">
+    <!-- Background overlay -->
+    <div class="fixed inset-0 bg-gray-500 opacity-75"></div>
+
+    <!-- Modal content -->
+        <div class="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all">
+          <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mt-3 text-center sm:mt-0 sm:text-left">
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Modal Title</h3>
+                <div class="mt-2">
+                  <p class="text-sm text-gray-500" id="modal-body">Your modal content here...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm" onclick="toggleModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
 </body>
 </html>
