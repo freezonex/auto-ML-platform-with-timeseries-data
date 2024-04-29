@@ -165,7 +165,8 @@ def confirm_training():
 def upload_test_data():
     if 'testdatafile' not in request.files:
         return jsonify(message="No file uploaded.")
-
+    if not os.path.exists('static/result_images'):
+        os.makedirs('static/result_images')
     target_basename = 'test_data'  # Standardized basename for test data
     file = request.files['testdatafile']
     original_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
@@ -190,6 +191,7 @@ def upload_test_data():
 
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
+
     data = request.get_json()
     threshold = data.get('threshold', None)
     if threshold:
