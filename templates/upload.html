@@ -90,15 +90,20 @@
         $("#submit-supervised-btn").click(function(){
             var labelName = $("#label-input").val();
             var excludeInput = $("#exclude-features-input").val();
+            var groupByFeature = $("#group-by-input").val();
             var excludedFeatures = excludeInput ? excludeInput.split(",").map(function(item) {
                 return item.trim();
-            }).filter(function(item) { return item !== ""; }) : []; // 过滤掉任何空字符串
-
+            }).filter(function(item) { return item !== ""; }) : [];
+            var isTimeSeries = $("#time-series-select").val();
             $.ajax({
                 url: "/set-supervised-options",
                 type: "POST",
                 contentType: "application/json",
-                data: JSON.stringify({label: labelName, excludedFeatures: excludedFeatures}),
+                data: JSON.stringify({
+                    label: labelName, excludedFeatures: excludedFeatures,
+                    isTimeSeries: isTimeSeries,
+                    groupBy: groupByFeature
+                }),
                 success: function(response) {
                     alert(response.message);
                     $("#visualization").show();
@@ -108,6 +113,7 @@
                 }
             });
         });
+
         // Show analysis options when the visualization button is clicked
         $("#visualization").click(function(){
             $("#analysis-options").show(); // Show the buttons for different analyses
@@ -149,6 +155,7 @@
                     $("#summary-label").text(response.label);
                     $("#summary-excluded-features").text(response.excluded_features.join(', '));
                     $("#summary-task-type").text(response.mode);
+                    $("#summary-time-series").text(response.time_series);
                     $("#summary").show();
                     alert('Model training started in ' + mode + ' mode.');
                 },
@@ -240,7 +247,8 @@
 <body>
     <h1>Upload Train data</h1>
     <form enctype="multipart/form-data">
-        <input type="file" name="datafile" />
+        <input type="text" name="taskname" placeholder="Enter task name" required />
+        <input type="file" name="datafile" required />
         <input type="submit" value="Upload" />
     </form>
     <div id="message" style="display:none;"></div> <!-- 消息显示区域 -->
@@ -259,8 +267,22 @@
         <!-- Label for specifying features to exclude -->
         <label for="exclude-features-input">Exclude Features:</label>
         <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas">
+
+        <!-- Dropdown to specify if the data is time-series -->
+        <label for="time-series-select">Is Time-Series Data:</label>
+        <select id="time-series-select">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+        </select>
+
+        <!-- Text input for specifying the group by feature -->
+        <label for="group-by-input">Group By (optional):</label>
+        <input type="text" id="group-by-input" placeholder="Enter the feature to group by">
+
         <button id="submit-supervised-btn">Set Options</button>
     </div>
+
+
     <!-- Visualization button, initially hidden -->
     <button id="visualization" style="display:none;">Visualization Options</button>
 
@@ -281,6 +303,7 @@
         <p><strong>Label:</strong> <span id="summary-label"></span></p>
         <p><strong>Excluded Features:</strong> <span id="summary-excluded-features"></span></p>
         <p><strong>Task Type:</strong> <span id="summary-task-type"></span></p>
+        <p><strong>Is Time Series:</strong> <span id="summary-time-series"></span></p>
         <button id="confirm-training">Confirm and Start Training</button>
     </div>
     <button id="start-testing" style="display:none;">Start Testing</button>
