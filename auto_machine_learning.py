@@ -1,4 +1,4 @@
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler,MinMaxScaler
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 import xgboost as xgb
@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error, f1_score
 import joblib
 import os
 import numpy as np
+from model.models import NeuralNetRegressor
 def AUTOML(x,y,mode='regression'):
     model_path = 'best_model/model.pkl'
     #we onlt use random forest, svm and xgboost here for demo
@@ -55,30 +56,83 @@ def AUTOML(x,y,mode='regression'):
     joblib.dump(best_model, model_path)
     return best_model,x_scaler
 
-def get_model_parameters(mode):
+def get_model_parameters(mode,is_time_series=False):
     # Set up the model and parameters
-    models_params = {
-        # 'random_forest': {
-        #     'model': RandomForestClassifier() if mode == 'classification' else RandomForestRegressor(),
-        #     'params': {
-        #         'n_estimators': [10, 50, 100],
-        #         'max_depth': [None, 10, 20, 30]
-        #     }
-        # },
-        # 'svm': {
-        #     'model': SVC() if mode == 'classification' else SVR(),
-        #     'params': {
-        #         'C': [0.1, 1, 10],
-        #         'kernel': ['rbf', 'linear']
-        #     }
-        # },
-        'xgboost': {
-            'model': xgb.XGBClassifier() if mode == 'classification' else xgb.XGBRegressor(),
-            'params': {
-                'n_estimators': [10,50,100],
-                'max_depth': [ 3,5,10],
-                'learning_rate': [ 0.1,0.01]
+    if not is_time_series:
+        models_params = {
+            # 'random_forest': {
+            #     'model': RandomForestClassifier() if mode == 'classification' else RandomForestRegressor(),
+            #     'params': {
+            #         'n_estimators': [10, 50, 100],
+            #         'max_depth': [None, 10, 20, 30]
+            #     }
+            # },
+            # 'svm': {
+            #     'model': SVC() if mode == 'classification' else SVR(),
+            #     'params': {
+            #         'C': [0.1, 1, 10],
+            #         'kernel': ['rbf', 'linear']
+            #     }
+            # },
+            'xgboost': {
+                'model': xgb.XGBClassifier() if mode == 'classification' else xgb.XGBRegressor(),
+                'params': {
+                    'n_estimators': [10,50,100],
+                    'max_depth': [ 3,5,10],
+                    'learning_rate': [ 0.1,0.01]
+                }
             }
         }
-    }
+    else:
+        models_params = {
+            'lstm': {
+                'model': NeuralNetRegressor,
+                'params' : {
+                    'module__hidden_dim': [ 30, 50],
+                    'lr': [0.01, 0.001],
+                    'batch_size': [16, 32]
+                }
+            }
+
+        }
     return models_params
+
+def AUTOML_for_time_series(dataframe,label,group_by=None):
+    scaler = MinMaxScaler()
+    scaled_dataframe = scaler.fit_transform(dataframe['storage'].values.reshape(-1, 1))
+
+    look_backs = [2,3,4]
+    for look_back in look_backs:
+        train_datasets, train_labels, test_datasets, test_labels = create_time_series_data(dataframe,label,look_back,group_by=group_by)
+
+
+def create_time_series_data(dataframe,label,look_back,group_by=None):
+    train_datasets = []
+    test_datasets = []
+    train_labels = []
+    test_labels = []
+
+    if group_by:
+        for name, group in dataframe.groupby(group_by):
+            split_index = int(len(group) * 0.8)
+            train_group = group.iloc[:split_index]
+            test_group = group.iloc[split_index - look_back:]
+
+            for start_index in range(len(train_group) - look_back):
+                subset = train_group.iloc[start_index:start_index + look_back]
+                truth = train_group.iloc[start_index + look_back][label]
+                train_datasets.append(subset)
+                train_labels.append(truth)
+
+            for start_index in range(len(test_group) - look_back):
+                subset = test_group.iloc[start_index:start_index + look_back]
+                truth = test_group.iloc[start_index + look_back][label]
+                test_datasets.append(subset)
+                test_labels.append(truth)
+    else:
+        split_index = int(len(dataframe)*0.8)
+        train_group = dataframe.iloc[:split_index]
+        test_group = dataframe.iloc[split_index - look_back:]
+        train_datasets.append(train_group)
+        test_datasets.append(test_group)
+    return train_datasets, train_labels, test_datasets, test_labels
