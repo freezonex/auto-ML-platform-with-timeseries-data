@@ -1,8 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from auto_machine_learning import AUTOML
+from auto_machine_learning import AUTOML,AUTOML_for_time_series
 from sklearn.metrics import mean_squared_error, f1_score,confusion_matrix
+import numpy as np
+from statsmodels.tsa.stattools import acf
 class DataAnalysis:
     def __init__(self, dataframe=None):
         self.dataframe = dataframe
@@ -11,6 +13,7 @@ class DataAnalysis:
         self.x_scaler = None
         self.test_df = None
         self.best_model = None
+        self.group_by = None
     def load_data(self,filepath):
         self.df = pd.read_csv(filepath) if filepath.endswith('.csv') else pd.read_excel(filepath)
         self.cur_df = self.df
@@ -36,31 +39,85 @@ class DataAnalysis:
         else:
             pass
 
-    def histogram(self,savepath):
-        num_features = len(self.cur_df.columns)
-        num_rows = (num_features + 1) // 2  # Adjust the number of rows in the grid
-        plt.figure(figsize=(10, num_rows * 5))  # Adjust the figure size appropriately
-        for i, column in enumerate(self.cur_df.columns):
-            plt.subplot(num_rows, 2, i + 1)  # Create subplots in a grid of 'num_rows x 2'
-            self.cur_df[column].hist(bins='auto', alpha=0.75)
-            plt.title(f'Histogram of {column}')
-            plt.xlabel('Value')
-            plt.ylabel('Frequency')
-        plt.tight_layout()
-        plt.savefig(savepath)
-
-    def scatter(self,label,savepath):
-        if label in self.cur_df.columns:
-            features = [col for col in self.cur_df.columns if col != label]
-            num_features = len(features)
+    def histogram(self,savepath,is_time_series=False):
+        if not is_time_series:
+            num_features = len(self.cur_df.columns)
             num_rows = (num_features + 1) // 2  # Adjust the number of rows in the grid
-            plt.figure(figsize=(10, num_rows * 5))
-            for i, feature in enumerate(features):
-                plt.subplot(num_rows, 2, i + 1)
-                plt.scatter(self.cur_df[feature], self.cur_df[label], alpha=0.5)
-                plt.title(f'Scatter Plot of {feature} vs. {label}')
-                plt.xlabel(feature)
-                plt.ylabel(label)
+            plt.figure(figsize=(10, num_rows * 5))  # Adjust the figure size appropriately
+            for i, column in enumerate(self.cur_df.columns):
+                plt.subplot(num_rows, 2, i + 1)  # Create subplots in a grid of 'num_rows x 2'
+                self.cur_df[column].hist(bins='auto', alpha=0.75)
+                plt.title(f'Histogram of {column}')
+                plt.xlabel('Value')
+                plt.ylabel('Frequency')
+            plt.tight_layout()
+            plt.savefig(savepath)
+            plt.close()
+        else:
+            groups = self.cur_df[self.group_by].unique()
+            features = [col for col in self.cur_df.columns if col not in ['date', self.group_by, self.label]]
+            num_groups = len(groups)
+            num_features = len(features)
+            fig, axes = plt.subplots(nrows=num_groups, ncols=num_features, figsize=(15, num_groups * 4))
+            axes = np.atleast_2d(axes).transpose()
+
+            for i, group in enumerate(groups):
+                group_data = self.cur_df[self.cur_df[self.group_by] == group]
+                for j, feature in enumerate(features):
+                    ax = axes[i, j]
+                    ax.plot(group_data['date'], group_data[feature], marker='o', linestyle='-')
+                    ax.set_title(f'{group} - {feature}')
+                    ax.set_ylabel('Value')
+                    if i == num_groups - 1:
+                        ax.set_xlabel('Date')
+                    if j == 0:
+                        ax.set_ylabel('Value')
+
+                # 设置图表布局
+            plt.tight_layout()
+            plt.savefig(savepath)
+            plt.close()
+
+    def scatter(self,label,savepath,is_time_series=False):
+        if not is_time_series:
+            if label in self.cur_df.columns:
+                features = [col for col in self.cur_df.columns if col != label]
+                num_features = len(features)
+                num_rows = (num_features + 1) // 2  # Adjust the number of rows in the grid
+                plt.figure(figsize=(10, num_rows * 5))
+                for i, feature in enumerate(features):
+                    plt.subplot(num_rows, 2, i + 1)
+                    plt.scatter(self.cur_df[feature], self.cur_df[label], alpha=0.5)
+                    plt.title(f'Scatter Plot of {feature} vs. {label}')
+                    plt.xlabel(feature)
+                    plt.ylabel(label)
+                plt.tight_layout()
+                plt.savefig(savepath)
+                plt.close()
+        else:
+            groups = self.cur_df[self.group_by].unique()
+            features = [col for col in self.cur_df.columns if col not in ['date', self.group_by, self.label]]
+            num_groups = len(groups)
+            num_features = len(features)
+            fig, axes = plt.subplots(nrows=num_groups, ncols=num_features, figsize=(15, num_groups * 4))
+            axes = np.atleast_2d(axes).transpose()
+
+            for i, group in enumerate(groups):
+                group_data = self.cur_df[self.cur_df[self.group_by] == group]
+                for j, feature in enumerate(features):
+                    ax = axes[i, j]
+                    # Calculate autocorrelation
+                    feature_data = group_data[feature].dropna()
+                    lag_acf = acf(feature_data, nlags=10)
+                    ax.stem(range(len(lag_acf)), lag_acf, basefmt="b-", use_line_collection=True)
+                    ax.set_title(f'{group} - {feature} Autocorrelation')
+                    ax.set_ylabel('Autocorrelation')
+                    if i == num_groups - 1:
+                        ax.set_xlabel('Lags')
+                    if j == 0:
+                        ax.set_ylabel('Autocorrelation')
+
+            # Set the layout and save the figure
             plt.tight_layout()
             plt.savefig(savepath)
             plt.close()
@@ -81,12 +138,20 @@ class DataAnalysis:
         plt.savefig(savepath)
         plt.close()
 
-    def auto_ml(self,label,mode):
+    def auto_ml(self,label,mode,time_series):
         print('start training')
-        features = [col for col in self.cur_df.columns if col != label]
-        x = self.cur_df[features]
-        y = self.cur_df[label]
-        self.best_model,self.x_scaler = AUTOML(x, y, mode)
+        if not time_series:
+            features = [col for col in self.cur_df.columns if col != label]
+            x = self.cur_df[features]
+            y = self.cur_df[label]
+            self.best_model,self.x_scaler = AUTOML(x, y, mode)
+        else:
+            AUTOML_for_time_series(self.cur_df,label,group_by=self.group_by)
+
+
+
+
+
 
     def evaluation(self,label,mode,threshold=None):
         feature_name = [col for col in self.cur_df.columns if col != label]

@@ -15,6 +15,9 @@
      <div class="flex flex-col justify-center items-center ">
         <div class="flex justify-center items-center mt-5">
             <form enctype="multipart/form-data" class="mb-4 ">
+                 <div class="flex justify-center items-center mt-5">
+                    <input type="text" name="taskname" placeholder="Enter task name" required class="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                </div>
                 <label class="block">
                     <span class="sr-only">Choose profile photo</span>
                     <!-- Hidden file input to associate with the custom file button -->
@@ -25,7 +28,7 @@
                         hover:file:bg-green-100 file-input
                         hidden" />
                     <!-- Custom file button -->
-                    <div class="mt-2 px-6 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
+                    <div class="mt-2 px-6 py-2 border border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 cursor-pointer">
                         Choose Training Data
                     </div>
                 </label>
@@ -48,6 +51,7 @@
          <!-- 数据显示区域 -->
 
         <button id="analyze-btn" class="flex justify-center items-center hidden mt-5 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out">Start Data Analysis</button> <!-- 数据分析按钮 -->
+
     </div>
 
    <div class="flex flex-col justify-center items-center mt-12"> <!-- Ensures full screen height and centers children -->
@@ -71,6 +75,22 @@
             </label>
             <input type="text" id="exclude-features-input" placeholder="Enter features to exclude, separated by commas" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
         </div>
+
+
+        <!-- Dropdown to specify if the data is time-series -->
+        <div  class="flex flex-col items-center mt-1 ">
+           <label for="time-series-select" class="block text-sm font-medium text-gray-700 mt-1">Is Time-Series Data:</label>
+           <select id="time-series-select" class="block border-gray-300 rounded shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 mt-1">
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+            </select>
+        </div>
+    <!-- Text input for specifying the group by feature -->
+        <div class="flex flex-col items-center w-full">
+            <label for="group-by-input" class="block text-sm font-medium text-gray-700 ">Group By (optional):</label>
+            <input type="text" id="group-by-input" class="mt-1 block w-2/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Enter the feature to group by">
+        </div>
+
         <div id="submit-supervised-btn1" class="flex justify-center items-center">
             <button id="submit-supervised-btn" class="px-4 py-2 border border-transparent text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-200 active:bg-green-700 transition ease-in-out duration-150 rounded">
                 Set Options
@@ -117,6 +137,7 @@
         <p class="text-md text-gray-700"><strong>Label:</strong> <span id="summary-label" class="text-blue-600"></span></p>
         <p class="text-md text-gray-700"><strong>Excluded Features:</strong> <span id="summary-excluded-features" class="text-blue-600"></span></p>
         <p class="text-md text-gray-700"><strong>Task Type:</strong> <span id="summary-task-type" class="text-blue-600"></span></p>
+         <p class="text-md text-gray-700"><strong>Is Time Series:</strong> <span id="summary-time-series" class="text-blue-600"></span></p>
         <div class="flex flex-col items-center justify-center mt-6">
             <button id="confirm-training" class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:bg-blue-700 rounded transition duration-150 ease-in-out mt-4">
                 Confirm and Start Training
@@ -181,10 +202,10 @@
     <div class="fixed bottom-0 right-0 p-4">
       <img src="static/gouzi.gif" alt="Descriptive Alt Text">
     </div>
-    
 
-    
-    
+
+
+
     <div id="modal" class="hidden fixed inset-0 overflow-y-auto">
   <div class="flex items-center justify-center min-h-screen text-center">
     <!-- Background overlay -->
