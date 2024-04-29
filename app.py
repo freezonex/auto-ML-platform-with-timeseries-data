@@ -6,13 +6,13 @@ from data_analysis import DataAnalysis
 from io import BytesIO
 import matplotlib.pyplot as plt
 import pickle
+
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 
 # 配置文件上传
-
 data_files = UploadSet('datafiles', DATA)
-app.config['UPLOADED_DATAFILES_DEST'] = 'data'  # 设置文件存储位置
+app.config['UPLOADED_DATAFILES_DEST'] = 'static/data'  # 设置文件存储位置
 configure_uploads(app, data_files)
 analysis = DataAnalysis()
 
@@ -22,30 +22,34 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    if 'datafile' not in request.files:
+        return jsonify(message="No file uploaded.")
+    taskname = request.form['taskname']
+    target_directory = os.path.join(app.config['UPLOADED_DATAFILES_DEST'], taskname)
+    session['taskname'] = taskname
+
+    if not os.path.exists(target_directory):
+        os.makedirs(target_directory)
+
     target_basename = 'train_data'  # Standardized basename for training data
 
-    if 'datafile' in request.files:
-        file = request.files['datafile']
-        original_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-        target_filename = f"{target_basename}.{original_extension}"  # Construct filename with extension
+    file = request.files['datafile']
+    original_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    target_filename = f"{target_basename}.{original_extension}"  # Construct filename with extension
 
-        # Check if the file with the specific name already exists
-        target_path = os.path.join(app.config['UPLOADED_DATAFILES_DEST'], target_filename)
+    # Check if the file with the specific name already exists
+    target_path = os.path.join(target_directory, target_filename)
+
+    if os.path.exists(target_path):
         analysis.load_data(target_path)
-        if os.path.exists(target_path):
-            return jsonify(message="File already exists, upload skipped.", filename=target_filename)
+        return jsonify(message="File already exists, upload skipped.", filename=target_filename)
 
-        # Save the file with the specific filename including its extension
-        filename = data_files.save(file, name=target_filename)
+    session['train_data_path'] = target_path
 
-        if os.path.exists(os.path.join(app.config['UPLOADED_DATAFILES_DEST'], filename)):
-            session['uploaded_file_path'] = os.path.join(app.config['UPLOADED_DATAFILES_DEST'], filename)
-            # Assuming 'analysis' is an instance of some class defined to handle data
-            return jsonify(message="File uploaded and saved as 'train_data' with original extension.", filename=filename)
-        else:
-            return jsonify(message="Failed to save file.")
+    file.save(target_path)
+    analysis.load_data(target_path)
+    return jsonify(message="File uploaded and saved in the task-specific directory.", filename=target_filename)
 
-    return jsonify(message="No file uploaded.")
 
 @app.route('/display-data', methods=['GET'])
 def display_data():
@@ -67,43 +71,73 @@ def pre_analyze():
 
 @app.route('/set-supervised-options', methods=['POST'])
 def set_supervised_options():
+    if not os.path.exists('static/images'):
+        os.makedirs('static/images')
+    if not os.path.exists(os.path.join('static/images',session['taskname'])):
+        os.makedirs(os.path.join('static/images',session['taskname']))
     data = request.get_json()
     label = data['label']
     excluded_features = data['excludedFeatures']
+    is_time_series = data['isTimeSeries'] == 'true'
+    group_by = data.get('groupBy', None)
+
     # 将这些设置存储在会话中以便后续使用
     session['label'] = label
     session['excluded_features'] = excluded_features
+    session['is_time_series'] = is_time_series
+    session['group_by'] = group_by
+
+    analysis.group_by = group_by
+    analysis.label = label
     analysis.remove_features(excluded_features)
-    return jsonify(message="Supervised options set successfully: Label - {}, Excluded Features - {}".format(label, excluded_features))
+    return jsonify(
+        message=f"Supervised options set successfully: Label - {label}, Excluded Features - {excluded_features}, Is Time-Series - {is_time_series}")
 
 @app.route('/generate_histogram')
 def generate_histogram():
-    if os.path.exists('images/histogram.png'):
-        pass
+    if session['is_time_series']:
+        if os.path.exists(os.path.join('static/images',session['taskname'],'time-series.png')):
+            pass
+        else:
+            save_path = os.path.join('static/images',session['taskname'],'time-series.png')
+            analysis.histogram(save_path,session['is_time_series'])  # Generate the histogram
+        return send_from_directory(os.path.join('static/images',session['taskname']), 'time-series.png')
     else:
-        save_path = 'images/histogram.png'
-        analysis.histogram(save_path)  # Generate the histogram
-    return send_from_directory('images', 'histogram.png')
+        if os.path.exists(os.path.join('static/images',session['taskname'],'histogram.png')):
+            pass
+        else:
+            save_path = os.path.join('static/images',session['taskname'],'histogram.png')
+            analysis.histogram(save_path)  # Generate the histogram
+        return send_from_directory(os.path.join('static/images',session['taskname']), 'histogram.png')
 
 @app.route('/generate_scatter')
 def generate_scatter():
-    if os.path.exists('images/scatter_plot.png'):
-        pass
+    if session['is_time_series']:
+        if os.path.exists(os.path.join('static/images',session['taskname'],'auto-correlation.png')):
+            pass
+        else:
+            save_path = os.path.join('static/images',session['taskname'],'auto-correlation.png')
+            analysis.scatter(None, save_path,session['is_time_series'])  # Generate the histogram
+        return send_from_directory(os.path.join('static/images',session['taskname']), 'auto-correlation.png')
     else:
-        label = session['label']
-        scatter_path = 'images/scatter_plot.png'
-        analysis.scatter(label, scatter_path)
-    return send_from_directory('images', 'scatter_plot.png')
+        if os.path.exists(os.path.join('static/images',session['taskname'],'scatter.png')):
+            pass
+        else:
+            label = session['label']
+            scatter_path = os.path.join('static/images',session['taskname'],'scatter.png')
+            analysis.scatter(label, scatter_path)
+        return send_from_directory(os.path.join('static/images',session['taskname']), 'scatter.png')
+
 
 @app.route('/generate_correlation')
 def generate_correlation():
-    if os.path.exists('images/correlation_plot.png'):
+    if os.path.exists(os.path.join('static/images',session['taskname'],'correlation.png')):
         pass
     else:
         label = session['label']
-        correlation_path = 'images/correlation_plot.png'
+        correlation_path = os.path.join('static/images',session['taskname'],'correlation.png')
         analysis.correlation(label, correlation_path)
-    return send_from_directory('images', 'correlation_plot.png')
+    return send_from_directory(os.path.join('static/images',session['taskname']), 'correlation.png')
 
 @app.route('/start_ml', methods=['POST'])
 def start_ml():
@@ -117,42 +151,41 @@ def start_ml():
         'message': f'Model training initiated in {mode} mode',
         'label': label,
         'excluded_features': excluded_features,
-        'mode': mode
+        'mode': mode,
+        'time_series': session['is_time_series']
     })
 @app.route('/confirm_training', methods=['POST'])
 def confirm_training():
     mode = session['mode']
     label = session['label']
-    analysis.auto_ml(label,mode)
+    analysis.auto_ml(label,mode,session['is_time_series'])
     return jsonify({'message':'get the best model successfully'})
 
 @app.route('/upload-test-data', methods=['POST'])
 def upload_test_data():
+    if 'testdatafile' not in request.files:
+        return jsonify(message="No file uploaded.")
+
     target_basename = 'test_data'  # Standardized basename for test data
+    file = request.files['testdatafile']
+    original_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    target_filename = f"{target_basename}.{original_extension}"  # Construct filename with extension
 
-    if 'testdatafile' in request.files:
-        file = request.files['testdatafile']
-        original_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-        target_filename = f"{target_basename}.{original_extension}"  # Construct filename with extension
+    taskname = session['taskname']
 
-        # Check if the file already exists
-        target_path = os.path.join(app.config['UPLOADED_DATAFILES_DEST'], target_filename)
+    # Check if the file already exists
+    target_directory = os.path.join(app.config['UPLOADED_DATAFILES_DEST'], taskname)
+    target_path = os.path.join(target_directory, target_filename)
+
+    if os.path.exists(target_path):
         analysis.load_test_data(target_path)
-        if os.path.exists(target_path):
-            return jsonify(message="Test file already exists, upload skipped.", filename=target_filename)
+        return jsonify(message="Test file already exists, upload skipped.", filename=target_filename)
 
-        # Save the file with the specific filename including its extension
-        filename = data_files.save(file, name=target_filename)
+    # Save the file with the specific filename including its extension
+    file.save(target_path)
+    session['uploaded_test_file_path'] = target_path
 
-        if os.path.exists(os.path.join(app.config['UPLOADED_DATAFILES_DEST'], filename)):
-            session['uploaded_test_file_path'] = os.path.join(app.config['UPLOADED_DATAFILES_DEST'], filename)
-            # Assuming 'analysis' is an instance of some class defined to handle data
-
-            return jsonify(message="Test file uploaded and saved as 'test_data' with original extension.", filename=filename)
-        else:
-            return jsonify(message="Failed to save file.")
-
-    return jsonify(message="No test file uploaded.")
+    return jsonify(message="Test file uploaded.")
 
 
 @app.route('/evaluate', methods=['POST'])

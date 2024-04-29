@@ -84,15 +84,23 @@ $(document).ready(function(){
         $("#submit-supervised-btn").click(function(){
             var labelName = $("#label-input").val();
             var excludeInput = $("#exclude-features-input").val();
+            var groupByFeature = $("#group-by-input").val();
             var excludedFeatures = excludeInput ? excludeInput.split(",").map(function(item) {
                 return item.trim();
             }).filter(function(item) { return item !== ""; }) : []; // 过滤掉任何空字符串
-
+            var isTimeSeries = $("#time-series-select").val();
             $.ajax({
                 url: "/set-supervised-options",
                 type: "POST",
                 contentType: "application/json",
-                data: JSON.stringify({label: labelName, excludedFeatures: excludedFeatures}),
+                data: JSON.stringify(
+                    {
+                        label: labelName,
+                        excludedFeatures: excludedFeatures,
+                        isTimeSeries: isTimeSeries,
+                        groupBy: groupByFeature
+                    }
+                ),
                 success: function(response) {
                     toggleModal('Learning Mode info',response.message);
                     $("#visualization").show();
@@ -143,8 +151,9 @@ $(document).ready(function(){
                     $("#summary-label").text(response.label);
                     $("#summary-excluded-features").text(response.excluded_features.join(', '));
                     $("#summary-task-type").text(response.mode);
+                    $("#summary-time-series").text(response.time_series);
                     $("#summary").show();
-                    toggleModal('Learning Mode Irror','Model training started in ' + mode + ' mode.');
+                    toggleModal('Learning Mode Info','Model training started in ' + mode + ' mode.');
                 },
                 error: function() {
                     toggleModal('Learning Mode Error','Error starting machine learning.');
@@ -257,5 +266,3 @@ function toggleModal(title, message) {
 
     modal.classList.toggle('hidden');  // Toggle visibility of the modal
 }
-
-
