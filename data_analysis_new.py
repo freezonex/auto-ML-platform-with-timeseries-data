@@ -11,6 +11,8 @@ from copy import deepcopy
 from statsmodels.tsa.seasonal import seasonal_decompose
 from utlis.plot import TimeSeriesPlot
 from utlis.preprocessing import TimeSeriesPreprocessor
+from AutoMachineLearning import TimeSeriesAutoML,GridSearchTuner
+from model.models import LSTMModel
 class BaseConfig:
     def __init__(self, task,group_by=None, label=None, excluded_features=None):
         self.group_by = group_by
@@ -95,6 +97,10 @@ if __name__ == '__main__':
     data = analysis.processed_dataframe
     preprocessor = TimeSeriesPreprocessor(time_series_config,look_back=3)
     preprocessor.fit(data)
-    preprocessed_training_data = preprocessor.transform(data)
-
-    print(preprocessed_training_data)
+    preprocessed_training_data, preprocessed_training_label = preprocessor.transform(data)
+    #should specify the dimension here
+    input_dimension,output_dimension = 1,1
+    auto_ml = TimeSeriesAutoML(preprocessed_training_data,preprocessed_training_label)
+    auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
+    auto_ml.add_tuner('GridSearch',GridSearchTuner(num_folds=2))
+    auto_ml.run_experiments()
