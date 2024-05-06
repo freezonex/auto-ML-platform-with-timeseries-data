@@ -38,7 +38,8 @@ class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
         time_series_data = self._create_time_series_data(scaled_features,features)
         return time_series_data
     def _create_time_series_data(self, dataframe, features):
-        processed_data = {}
+        data_dict = {}
+        label_dict = {}
         if self.group_col:
             for name,group in dataframe.groupby(self.group_col):
                 data = []
@@ -48,7 +49,8 @@ class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
                     sublabel = group.iloc[start_index + self.look_back-1][self.label_col]
                     data.append(subset)
                     label.append(sublabel)
-                processed_data[name] = [data,label]
+                data_dict[name] = data
+                label_dict[name] = label
         else:
             data = []
             label = []
@@ -57,8 +59,10 @@ class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
                 sublabel = dataframe.iloc[start_index + self.look_back - 1][self.label_col]
                 data.append(subset)
                 label.append(sublabel)
-            processed_data['no group'] = [data, label]
-        return processed_data
+            data_dict['no group'] = data
+            label_dict['no group'] = label
+
+        return data_dict,label_dict
 
     def inverse_transform_labels(self, y_scaled):
         """Reverse the scaling of the label data."""
