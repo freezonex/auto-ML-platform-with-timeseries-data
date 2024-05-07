@@ -2,12 +2,12 @@ import pandas as pd
 import joblib
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler,MinMaxScaler
 
 class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self, config,feature_scaler=None, label_scaler=None, look_back=1):
-        self.feature_scaler = feature_scaler if feature_scaler else StandardScaler()
-        self.label_scaler = label_scaler if label_scaler else StandardScaler()
+        self.feature_scaler = feature_scaler if feature_scaler else MinMaxScaler()
+        self.label_scaler = label_scaler if label_scaler else MinMaxScaler()
         self.look_back = look_back
         self.group_col = config.group_by
         self.label_col = config.label

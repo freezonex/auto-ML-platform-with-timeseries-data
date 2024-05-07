@@ -9,10 +9,11 @@ from statsmodels.tsa.stattools import acf
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from statsmodels.tsa.seasonal import seasonal_decompose
-from utlis.plot import TimeSeriesPlot
+from utlis.plot import TimeSeriesPlot,plot_grouped_time_series
 from utlis.preprocessing import TimeSeriesPreprocessor
 from AutoMachineLearning import TimeSeriesAutoML,GridSearchTuner
 from model.models import LSTMModel
+from matplotlib.dates import DateFormatter, MonthLocator
 class BaseConfig:
     def __init__(self, task,group_by=None, label=None, excluded_features=None):
         self.group_by = group_by
@@ -64,18 +65,19 @@ class TimeSeriesAnalysis(DataAnalysisInterface):
             self.processed_dataframe.set_index(self.config.timestamp_column, inplace=True)
             print(f"Timestamp column '{self.config.timestamp_column}' set as index.")
 
-        # 应用分组和填充逻辑
+        columns_to_fill = self.processed_dataframe.columns.difference([self.config.label])
+
+        # Apply group and fill logic
         if self.config.group_by and self.config.group_by in self.processed_dataframe.columns:
-            # 分组并对每个组进行操作
+            # Group by the specified column and apply filling only to the specified columns to fill
             grouped = self.processed_dataframe.groupby(self.config.group_by)
-            # 用相邻的时间戳填充每个组的缺失值
-            self.processed_dataframe = grouped.apply(lambda group: group.ffill().bfill())
-            print("Data grouped by", self.config.group_by, "and missing values filled.")
+            self.processed_dataframe[columns_to_fill] = grouped[columns_to_fill].apply(
+                lambda group: group.ffill().bfill())
+            print("Data grouped by", self.config.group_by, "and missing values in features filled.")
         else:
-            # 没有指定分组，直接在整个数据集上进行操作
-            self.processed_dataframe.ffill(inplace=True)  # 先前填充
-            self.processed_dataframe.bfill(inplace=True)  # 后向填充
-            print("Missing values filled based on time adjacency without grouping.")
+            # Apply filling to the entire dataset excluding the label column
+            self.processed_dataframe[columns_to_fill] = self.processed_dataframe[columns_to_fill].ffill().bfill()
+            print("Missing values in features filled based on time adjacency without grouping.")
 
     def analyze_data(self):
         analyzer = TimeSeriesPlot(self.config, self.processed_dataframe)
@@ -87,7 +89,7 @@ if __name__ == '__main__':
         task = 'warehouse',
         timestamp_column='date',
         label='next_day_storage',
-        group_by='warehouse name'
+        group_by='warehouse_name'
     )
     analysis = TimeSeriesAnalysis(time_series_config)
     analysis.load_data(path)
@@ -95,12 +97,74 @@ if __name__ == '__main__':
     print(analysis.processed_dataframe.head())
     # analysis.analyze_data()
     data = analysis.processed_dataframe
-    preprocessor = TimeSeriesPreprocessor(time_series_config,look_back=3)
+    preprocessor = TimeSeriesPreprocessor(time_series_config, look_back=3)
     preprocessor.fit(data)
     preprocessed_training_data, preprocessed_training_label = preprocessor.transform(data)
+
+    test_path = 'static/data/warehouse/test_data.csv'
+    analysis.load_data(test_path)
+    analysis.preprocess_data()
+    print(analysis.processed_dataframe.head())
+    test_data = analysis.processed_dataframe
+    preprocessed_test_data, preprocessed_test_label = preprocessor.transform(test_data)
+
     #should specify the dimension here
     input_dimension,output_dimension = 1,1
-    auto_ml = TimeSeriesAutoML(preprocessed_training_data,preprocessed_training_label)
+    auto_ml = TimeSeriesAutoML()
     auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
     auto_ml.add_tuner('GridSearch',GridSearchTuner(num_folds=2))
-    auto_ml.run_experiments()
+    auto_ml.run_experiments(preprocessed_training_data,preprocessed_training_label)
+    #result includes train_loss, test_loss, train_prediction, test_prediction
+    results = auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
+
+    for model_name,result in results.items():
+        train_prediction = result['train_prediction']
+        train_prediction = preprocessor.inverse_transform_labels(train_prediction)
+
+        test_prediction = result['test_prediction']
+        test_prediction = preprocessor.inverse_transform_labels(test_prediction)
+
+        num_groups = len(preprocessed_training_label)
+        fig, axes = plt.subplots(nrows=num_groups, ncols=1, figsize=(10, 5 * num_groups))
+
+        # Define the overall date range
+        start_date = pd.to_datetime('2023-08-04')
+        end_date = pd.to_datetime('2023-11-30')
+
+        # Generate a date range for plotting
+        date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+
+        start_index_train = 0
+        start_index_test = 0
+        for i, (name, truth) in enumerate(preprocessed_training_label.items()):
+            train_truth = preprocessor.inverse_transform_labels(np.array(truth))
+            test_truth = preprocessor.inverse_transform_labels(np.array(preprocessed_test_label[name]))
+
+            num_train = len(train_truth)
+            num_test = len(test_truth)
+
+            current_train_pred = train_prediction[start_index_train:start_index_train+num_train]
+            current_test_pred = test_prediction[start_index_test:start_index_test+num_test]
+            start_index_train += num_train
+            start_index_test += num_test
+
+            # Plotting
+            ax = axes[i]
+            ax.plot(date_range[:num_train], train_truth, label='Train Truth', color='blue')
+            ax.plot(date_range[:num_train], current_train_pred, label='Train Prediction', color='red', linestyle='--')
+            ax.plot(date_range[num_train:num_train + num_test], test_truth, label='Test Truth', color='green')
+            ax.plot(date_range[num_train:num_train + num_test], current_test_pred, label='Test Prediction',
+                    color='purple', linestyle='--')
+
+            # Formatting the x-axis
+            ax.xaxis.set_major_locator(MonthLocator())
+            ax.xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+
+            ax.set_title(f'Group: {name}')
+            ax.legend()
+            ax.set_xlabel('Date')
+            ax.set_ylabel('Value')
+
+    plt.tight_layout()
+    plt.savefig('test.png')

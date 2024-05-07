@@ -86,3 +86,49 @@ class TimeSeriesPlot:
         self.plot_time_series(groups)
         self.plot_autocorrelation(groups)
         self.plot_fft(groups)
+
+
+def plot_grouped_time_series(preprocessed_training_label, preprocessed_test_label, train_prediction, test_prediction):
+    num_groups = len(preprocessed_training_label)
+    fig, axes = plt.subplots(nrows=num_groups, ncols=2, figsize=(14, num_groups * 5), sharex='col')
+
+    # Flatten axes array for easy iteration if there's more than one row
+    if num_groups > 1:
+        axes = axes.flatten()
+    else:
+        axes = [axes]  # Wrap it in a list to use in a loop
+
+    train_pred_index = 0
+    test_pred_index = 0
+
+    for i, (name, train_label) in enumerate(preprocessed_training_label.items()):
+        test_label = preprocessed_test_label[name]
+
+        # Calculate the lengths of the current group's labels
+        train_len = len(train_label)
+        test_len = len(test_label)
+
+        # Slicing predictions according to the length of the current group's labels
+        current_train_pred = train_prediction[train_pred_index:train_pred_index + train_len]
+        current_test_pred = test_prediction[test_pred_index:test_pred_index + test_len]
+
+        # Update indices for next iteration
+        train_pred_index += train_len
+        test_pred_index += test_len
+
+        # Plot training data
+        ax = axes[2 * i]  # Even index for train data
+        ax.plot(train_label, label='Train Labels', color='blue')
+        ax.plot(current_train_pred, label='Train Predictions', color='red', linestyle='--')
+        ax.set_title(f'Training Data - {name}')
+        ax.legend()
+
+        # Plot testing data
+        ax = axes[2 * i + 1]  # Odd index for test data
+        ax.plot(test_label, label='Test Labels', color='blue')
+        ax.plot(current_test_pred, label='Test Predictions', color='red', linestyle='--')
+        ax.set_title(f'Testing Data - {name}')
+        ax.legend()
+
+    plt.tight_layout()
+    plt.savefig('test.png')

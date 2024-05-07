@@ -25,7 +25,6 @@ class Model(ABC):
     def load(self, path):
         pass
 
-
 class LSTMModel(Model):
     class LSTMNet(nn.Module):
         def __init__(self, input_dim, hidden_dim, output_dim, num_layers=1):
@@ -41,7 +40,7 @@ class LSTMModel(Model):
     def __init__(self, input_dim, output_dim):
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.L1Loss()
         self.model = None
         self.epochs = None
         self.batch_size = None
@@ -63,7 +62,8 @@ class LSTMModel(Model):
             for inputs, labels in dataloader:
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
+                # loss = self.criterion(outputs, labels.unsqueeze(-1))
+                loss = 0.5*self.criterion(outputs, labels.unsqueeze(-1))+0.5*nn.MSELoss()(outputs, labels.unsqueeze(-1))
                 loss.backward()
                 self.optimizer.step()
 
@@ -71,8 +71,9 @@ class LSTMModel(Model):
         X = torch.tensor(X, dtype=torch.float32).cuda()
         self.model.eval()
         with torch.no_grad():
-            outputs = self.model(X)
-            return outputs  # Direct output for regression
+            outputs = self.model(X).detach().cpu().numpy()
+
+        return outputs  # Direct output for regression
 
     def evaluate(self, X,y):
         self.model.eval()
@@ -90,12 +91,21 @@ class LSTMModel(Model):
         self.model = torch.load(path)
         self.model.eval()
 
+# param_grid = {
+#     'LSTM':
+#     {
+#     'hidden_dim': [50, 25],
+#     'num_layers': [1],
+#     'lr': [0.001, 0.01],
+#     'batch_size': [16, 32],
+#     'epochs': [50, 100]}
+# }
 param_grid = {
     'LSTM':
     {
-    'hidden_dim': [50, 100, 150],
-    'num_layers': [1, 2],
-    'lr': [0.001, 0.01],
-    'batch_size': [16, 32, 64],
-    'epochs': [50, 100, 150]}
+    'hidden_dim': [50],
+    'num_layers': [1],
+    'lr': [0.01],
+    'batch_size': [ 32],
+    'epochs': [20]}
 }

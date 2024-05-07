@@ -44,7 +44,6 @@ class GridSearchTuner(Tuner):
         keys, values = zip(*param_grid.items())
         for v in itertools.product(*values):
             params = dict(zip(keys, v))
-            print("Testing parameters:", params)
             avg_loss = self.cross_validation(model_class, params, X, y)
             if avg_loss < self.best_score:
                 self.best_score = avg_loss
@@ -67,19 +66,22 @@ class GridSearchTuner(Tuner):
             model_class.set_params(**params)
             model_class.train(X_train, y_train)
             loss = model_class.evaluate(X_test, y_test)
-            losses.extend(loss)
+            losses.append(loss)
         return sum(losses) / len(losses)
 
 # Base AutoML Class: Abstract base class for automated machine learning workflows
 class AutoMLBase(ABC):
-    def __init__(self, data, label):
+    def __init__(self):
         """Initialize with data and labels.
         Use case: Forms the base for any AutoML system that automates the process of applying machine learning models to real-world tasks."""
-        self.data = data
-        self.label = label
+        self.train_data = None
+        self.train_label = None
+        self.test_data = None
+        self.test_label = None
         self.models = {}
         self.tuners = {}
-
+        self.best_model = {}
+        self.best_score = {}
     def add_model(self, name, model):
         """Add a model to the AutoML system.
         Use case: Allows dynamic addition of models to the system for experimentation or deployment."""
@@ -91,33 +93,75 @@ class AutoMLBase(ABC):
         self.tuners[name] = tuner
 
     @abstractmethod
-    def run_experiments(self):
+    def run_experiments(self,train_data,train_label):
+        """Run experiments using the added models and tuners.
+        Use case: Used to conduct extensive testing and validation of models across different datasets."""
+        pass
+
+    @abstractmethod
+    def evaluate(self,test_data,test_label):
         """Run experiments using the added models and tuners.
         Use case: Used to conduct extensive testing and validation of models across different datasets."""
         pass
 
 # Concrete Implementation for Time Series AutoML
 class TimeSeriesAutoML(AutoMLBase):
-    def run_experiments(self):
-        """Run experiments on time series data using the specified models and tuners.
-        Use case: Ideal for applications in financial markets, weather forecasting, and demand forecasting where time series analysis is crucial."""
-        train_data = []
-        train_label = []
-        for key in self.data.keys():
-            train_data.extend(np.array(self.data[key]))
-            train_label.extend(np.array(self.label[key]))
-        train_data = np.array(train_data)
-        train_label = np.array(train_label)
+    def run_experiments(self,train_data,train_label):
+        """
+        Run experiments on time series data using the specified models and tuners.
+        Save the best model path for each kind of model
+        Use case: Ideal for applications in financial markets, weather forecasting, and demand forecasting
+        where time series analysis is crucial."""
+        data = []
+        label = []
+        for key in train_data.keys():
+            data.extend(np.array(train_data[key]))
+            label.extend(np.array(train_label[key]))
+        train_data = np.array(data)
+        train_label = np.array(label)
+        self.train_data = train_data
+        self.train_label = train_label
         for name, model in self.models.items():
+            best_score = float('inf')
             param = param_grid[name]
             for name_tuner, tuner in self.tuners.items():
                 model_class, score = tuner.optimize(model, param, train_data, train_label)
                 model_class.save(f'{name}_{name_tuner}_{score}_best.pth')
+                if score < best_score:
+                    best_score = score
+                    self.best_score[name] = score
+                    self.best_model[name] = f'{name}_{name_tuner}_{score}_best.pth'
 
-    def evaluate(self, predictions, actual):
-        """Evaluate predictions against actual data and return a metric.
+    def evaluate(self, test_data, test_label):
+        """evaluation on train data and test data to give a result of the model, can be the best model or the
+        best model in each kind of model.
         Use case: Provides a method to assess the effectiveness of models in making accurate predictions."""
-        return np.mean(predictions == actual)  # Example metric
+        data = []
+        label = []
+        for key in test_data.keys():
+            data.extend(np.array(test_data[key]))
+            label.extend(np.array(test_label[key]))
+        test_data = np.array(data)
+        test_label = np.array(label)
+        self.test_data = test_data
+        self.test_label = test_label
+        result = {}
+        for name, model in self.models.items():
+            model.load(self.best_model[name])
+            train_loss = model.evaluate(self.train_data,self.train_label)
+            test_loss = model.evaluate(self.test_data,self.test_label)
+            train_prediction = model.predict(self.train_data)
+            test_prediction = model.predict(self.test_data)
+            result[name] = {
+                'train_loss':train_loss,
+                'test_loss':test_loss,
+                'train_prediction':train_prediction,
+                'test_prediction':test_prediction
+            }
+        return result
+
+
+
 
 
 
