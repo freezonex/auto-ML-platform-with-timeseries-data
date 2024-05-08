@@ -12,8 +12,9 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from utlis.plot import TimeSeriesPlot,plot_grouped_time_series
 from utlis.preprocessing import TimeSeriesPreprocessor
 from AutoMachineLearning import TimeSeriesAutoML,GridSearchTuner
-from model.models import LSTMModel,GRUModel
+from model.models import LSTMModel,GRUModel,BaseTCNModel
 from matplotlib.dates import DateFormatter, MonthLocator
+from datetime import datetime, timedelta
 class BaseConfig:
     def __init__(self, task,group_by=None, label=None, excluded_features=None):
         self.group_by = group_by
@@ -37,6 +38,7 @@ class DataAnalysisInterface(ABC):
         self.dataframe = pd.read_csv(filepath) if filepath.endswith('.csv') else pd.read_excel(filepath)
         self.processed_dataframe = deepcopy(self.dataframe)
         print(f'Loading data from {filepath}')
+
 
     @abstractmethod
     def preprocess_data(self):
@@ -79,6 +81,17 @@ class TimeSeriesAnalysis(DataAnalysisInterface):
             self.processed_dataframe[columns_to_fill] = self.processed_dataframe[columns_to_fill].ffill().bfill()
             print("Missing values in features filled based on time adjacency without grouping.")
 
+    def get_partial_data(self, start=None, end=None):
+        # Slicing directly using the datetime index if start and/or end are provided
+        if start and end:
+            return self.processed_dataframe.loc[start:end].copy()
+        elif start:
+            return self.processed_dataframe.loc[start:].copy()
+        elif end:
+            return self.processed_dataframe.loc[:end].copy()
+        else:
+            return self.processed_dataframe.copy()
+
     def analyze_data(self):
         analyzer = TimeSeriesPlot(self.config, self.processed_dataframe)
         analyzer.analyze_data()
@@ -91,29 +104,49 @@ if __name__ == '__main__':
         label='next_day_storage',
         group_by='warehouse_name'
     )
+    start_date = '2023-08-01'
+    start_test_date = '2023-11-07'
+    end_date = '2023-11-30'
+
+
     analysis = TimeSeriesAnalysis(time_series_config)
     analysis.load_data(path)
     analysis.preprocess_data()
     print(analysis.processed_dataframe.head())
     # analysis.analyze_data()
-    data = analysis.processed_dataframe
-    preprocessor = TimeSeriesPreprocessor(time_series_config, look_back=3)
+
+    #look back set up, look back = 1 can use auto regression task, e.g. arima
+    #look back>1 use rnn based method
+    look_back = 3
+
+    data = analysis.get_partial_data(start_date,start_test_date)
+    preprocessor = TimeSeriesPreprocessor(time_series_config, look_back=look_back)
     preprocessor.fit(data)
     preprocessed_training_data, preprocessed_training_label = preprocessor.transform(data)
 
-    test_path = 'static/data/warehouse/test_data.csv'
-    analysis.load_data(test_path)
+    # test_path = 'static/data/warehouse/test_data.csv'
+    #define the test data start from which date,consider the look back
+    start_test_date = datetime.strptime(start_test_date, '%Y-%m-%d')
+    start_test_date = start_test_date+timedelta(days=1)-timedelta(days=look_back)
+    start_test_date = start_test_date.strftime('%Y-%m-%d')
+
+    #read and process again, since new data is coming
+    analysis.load_data(path)
     analysis.preprocess_data()
+    # analysis.preprocess_data()
     print(analysis.processed_dataframe.head())
-    test_data = analysis.processed_dataframe
+    test_data = analysis.get_partial_data(start_test_date,end_date)
     preprocessed_test_data, preprocessed_test_label = preprocessor.transform(test_data)
 
     #should specify the dimension here
     input_dimension,output_dimension = 1,1
     auto_ml = TimeSeriesAutoML()
+
     auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
     auto_ml.add_model('GRU',GRUModel(input_dimension,output_dimension))
+    auto_ml.add_model('TCN',BaseTCNModel(input_dimension,output_dimension))
     auto_ml.add_tuner('GridSearch',GridSearchTuner(num_folds=2))
+
     auto_ml.run_experiments(preprocessed_training_data,preprocessed_training_label)
     #result includes train_loss, test_loss, train_prediction, test_prediction
     results = auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
@@ -129,8 +162,8 @@ if __name__ == '__main__':
         fig, axes = plt.subplots(nrows=num_groups, ncols=1, figsize=(10, 5 * num_groups))
 
         # Define the overall date range
-        start_date = pd.to_datetime('2023-08-04')
-        end_date = pd.to_datetime('2023-11-30')
+        start_date = pd.to_datetime(start_date)
+        end_date = pd.to_datetime(end_date)
 
         # Generate a date range for plotting
         date_range = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -166,6 +199,6 @@ if __name__ == '__main__':
             ax.legend()
             ax.set_xlabel('Date')
             ax.set_ylabel('Value')
-
+        plt.title(f"{model_name}:{results[model_name]['test_loss']}")
         plt.tight_layout()
         plt.savefig(f'{model_name}test.png')

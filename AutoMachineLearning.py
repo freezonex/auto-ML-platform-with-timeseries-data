@@ -68,6 +68,9 @@ class GridSearchTuner(Tuner):
             loss = model_class.evaluate(X_test, y_test)
             losses.append(loss)
         return sum(losses) / len(losses)
+    def reset(self):
+        self.best_params = None
+        self.best_score = float('inf')
 
 # Base AutoML Class: Abstract base class for automated machine learning workflows
 class AutoMLBase(ABC):
@@ -126,6 +129,7 @@ class TimeSeriesAutoML(AutoMLBase):
             param = param_grid[name]
             for name_tuner, tuner in self.tuners.items():
                 model_class, score = tuner.optimize(model, param, train_data, train_label)
+                tuner.reset()
                 model_class.save(f'{name}_{name_tuner}_{score}_best.pth')
                 if score < best_score:
                     best_score = score
