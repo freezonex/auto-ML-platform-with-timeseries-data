@@ -85,6 +85,8 @@ class AutoMLBase(ABC):
         self.tuners = {}
         self.best_model = {}
         self.best_score = {}
+        self.train_result = {}
+        self.test_result = {}
     def add_model(self, name, model):
         """Add a model to the AutoML system.
         Use case: Allows dynamic addition of models to the system for experimentation or deployment."""
@@ -135,7 +137,12 @@ class TimeSeriesAutoML(AutoMLBase):
                     best_score = score
                     self.best_score[name] = score
                     self.best_model[name] = f'{name}_{name_tuner}_{score}_best.pth'
-
+                train_loss = model.evaluate(self.train_data, self.train_label)
+                train_prediction = model.predict(self.train_data)
+                self.train_result[name] = {
+                    'train_loss': train_loss,
+                    'train_prediction': train_prediction
+                }
     def evaluate(self, test_data, test_label):
         """evaluation on train data and test data to give a result of the model, can be the best model or the
         best model in each kind of model.
@@ -149,20 +156,15 @@ class TimeSeriesAutoML(AutoMLBase):
         test_label = np.array(label)
         self.test_data = test_data
         self.test_label = test_label
-        result = {}
         for name, model in self.models.items():
             model.load(self.best_model[name])
-            train_loss = model.evaluate(self.train_data,self.train_label)
             test_loss = model.evaluate(self.test_data,self.test_label)
-            train_prediction = model.predict(self.train_data)
             test_prediction = model.predict(self.test_data)
-            result[name] = {
-                'train_loss':train_loss,
-                'test_loss':test_loss,
-                'train_prediction':train_prediction,
-                'test_prediction':test_prediction
+
+            self.test_result[name] = {
+                'test_loss': test_loss,
+                'test_prediction': test_prediction
             }
-        return result
 
 
 

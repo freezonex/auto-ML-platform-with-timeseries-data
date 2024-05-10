@@ -215,7 +215,7 @@ param_grid = {
     'num_layers': [1],
     'lr': [0.01],
     'batch_size': [ 32],
-    'epochs': [20,50]},
+    'epochs': [50]},
     'TCN':
 {
     'kernel_size':[3],
