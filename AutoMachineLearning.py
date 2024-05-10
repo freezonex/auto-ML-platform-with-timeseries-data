@@ -137,10 +137,9 @@ class TimeSeriesAutoML(AutoMLBase):
                     best_score = score
                     self.best_score[name] = score
                     self.best_model[name] = f'{name}_{name_tuner}_{score}_best.pth'
-                train_loss = model.evaluate(self.train_data, self.train_label)
                 train_prediction = model.predict(self.train_data)
                 self.train_result[name] = {
-                    'train_loss': train_loss,
+                    'train_loss': self.best_score[name],
                     'train_prediction': train_prediction
                 }
     def evaluate(self, test_data, test_label):
