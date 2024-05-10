@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import pickle
 import pandas as pd
+import numpy as np
 from abc import ABC, abstractmethod
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset
@@ -75,21 +76,53 @@ class BaseRNNModel(Model):
                 loss.backward()
                 self.optimizer.step()
 
-    def predict(self, X):
-        X = torch.tensor(X, dtype=torch.float32).cuda()
+    def predict(self, X, batch_size=32):
         self.model.eval()
-        with torch.no_grad():
-            outputs = self.model(X).detach().cpu().numpy()
-        return outputs
+        predictions = []
 
-    def evaluate(self, X, y):
-        self.model.eval()
-        X = torch.tensor(X, dtype=torch.float32).cuda()
-        y = torch.tensor(y, dtype=torch.float32).cuda()
+        # Avoid converting the entire array to a GPU tensor at once
         with torch.no_grad():
-            outputs = self.model(X)
-            loss = nn.MSELoss()(outputs, y).detach().cpu().numpy()
-        return loss
+            for i in range(0, len(X), batch_size):
+                # Convert slices of arrays to tensors directly and move to GPU
+                X_batch = torch.tensor(X[i:i + batch_size], dtype=torch.float32).cuda()
+
+                # Process each batch
+                outputs = self.model(X_batch).detach().cpu().numpy()
+                predictions.append(outputs)
+
+                # Explicitly delete tensors to free up GPU memory
+                del X_batch, outputs
+                torch.cuda.empty_cache()  # Clear memory cache to prevent CUDA out of memory errors
+
+        # Concatenate all batch outputs
+        return np.concatenate(predictions, axis=0)
+
+    def evaluate(self, X, y, batch_size=32):
+        self.model.eval()
+        total_loss = 0.0
+        n_batches = 0
+
+        # Assuming X and y are numpy arrays or similar, batch processing is done without prior conversion
+        with torch.no_grad():
+            for i in range(0, len(X), batch_size):
+                # Convert slices of arrays to tensors directly and move to GPU
+                X_batch = torch.tensor(X[i:i + batch_size], dtype=torch.float32).cuda()
+                y_batch = torch.tensor(y[i:i + batch_size], dtype=torch.float32).cuda()
+
+                # Forward pass
+                outputs = self.model(X_batch)
+                loss = nn.MSELoss()(outputs,
+                                    y_batch).item()  # Use .item() to get the Python number from a tensor with one element
+                total_loss += loss
+                n_batches += 1
+
+                # Explicitly delete tensors to free up GPU memory
+                del X_batch, y_batch, outputs
+                torch.cuda.empty_cache()  # Clear memory cache to prevent CUDA out of memory error
+
+        # Calculate average loss over all batches
+        average_loss = total_loss / n_batches if n_batches > 0 else 0
+        return average_loss
 
     def save(self, path):
         torch.save(self.model, path)
@@ -176,22 +209,53 @@ class BaseTCNModel(Model):
                                                                                                 labels.unsqueeze(-1))
                 loss.backward()
                 self.optimizer.step()
-
-    def predict(self, X):
-        X = torch.tensor(X, dtype=torch.float32).cuda()
+        del dataset,X,y,loss,outputs
+        torch.cuda.empty_cache()
+    def predict(self, X, batch_size=32):
         self.model.eval()
-        with torch.no_grad():
-            outputs = self.model(X).detach().cpu().numpy()
-        return outputs
+        predictions = []
 
-    def evaluate(self, X, y):
-        self.model.eval()
-        X = torch.tensor(X, dtype=torch.float32).cuda()
-        y = torch.tensor(y, dtype=torch.float32).cuda()
+        # Convert the entire array to a tensor first to avoid multiple GPU transfers
+        X_tensor = torch.tensor(X, dtype=torch.float32).cuda()
+
         with torch.no_grad():
-            outputs = self.model(X)
-            loss = nn.MSELoss()(outputs, y).detach().cpu().numpy()
-        return loss
+            for i in range(0, len(X_tensor), batch_size):
+                # Process each batch
+                X_batch = X_tensor[i:i + batch_size]
+                outputs = self.model(X_batch).detach().cpu().numpy()
+                predictions.append(outputs)
+        del X_tensor,outputs
+        torch.cuda.empty_cache()
+
+        # Concatenate all batch outputs
+        return np.concatenate(predictions, axis=0)
+
+    def evaluate(self, X, y, batch_size=32):
+        self.model.eval()
+        total_loss = 0.0
+        n_batches = 0
+
+        # Assuming X and y are numpy arrays or similar, batch processing is done without prior conversion
+        with torch.no_grad():
+            for i in range(0, len(X), batch_size):
+                # Convert slices of arrays to tensors directly and move to GPU
+                X_batch = torch.tensor(X[i:i + batch_size], dtype=torch.float32).cuda()
+                y_batch = torch.tensor(y[i:i + batch_size], dtype=torch.float32).cuda()
+
+                # Forward pass
+                outputs = self.model(X_batch)
+                loss = nn.MSELoss()(outputs,
+                                    y_batch).item()  # Use .item() to get the Python number from a tensor with one element
+                total_loss += loss
+                n_batches += 1
+
+                # Explicitly delete tensors to free up GPU memory
+                del X_batch, y_batch, outputs
+                torch.cuda.empty_cache()  # Clear memory cache to prevent CUDA out of memory error
+
+        # Calculate average loss over all batches
+        average_loss = total_loss / n_batches if n_batches > 0 else 0
+        return average_loss
 
     def save(self, path):
         torch.save(self.model, path)
