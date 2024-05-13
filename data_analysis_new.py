@@ -14,6 +14,7 @@ from AutoMachineLearning import TimeSeriesAutoML,GridSearchTuner
 from model.models import LSTMModel,GRUModel,BaseTCNModel
 from matplotlib.dates import DateFormatter, MonthLocator
 from datetime import datetime, timedelta
+
 class BaseConfig:
     def __init__(self, task,group_by=None, label=None, excluded_features=None):
         self.group_by = group_by
@@ -44,7 +45,7 @@ class DataAnalysisInterface(ABC):
         self.processed_dataframe.dropna(axis=1,how='all',inplace=True)
 
         if self.config.excluded_features:
-            self.processed_dataframe.drop(column=self.config.excluded_features,inplace=True,errors='ignore')
+            self.processed_dataframe.drop(columns=self.config.excluded_features,inplace=True,errors='ignore')
 
     @abstractmethod
     def analyze_data(self):
@@ -103,6 +104,13 @@ if __name__ == '__main__':
         label='next_day_storage',
         group_by='warehouse_name'
     )
+    # time_series_config = TimeSeriesConfig(
+    #     task = 'nasa',
+    #     timestamp_column='time_in_cycles',
+    #     label='RUL',
+    #     group_by='engine_no',
+    #     excluded_features=['op_setting_3','sensor_16','sensor_19'],
+    # )
     start_date = '2023-08-01'
     start_test_date = '2023-11-07'
 
@@ -114,21 +122,22 @@ if __name__ == '__main__':
     analysis.load_data(path)
     analysis.preprocess_data()
     print(analysis.processed_dataframe.head())
-    # analysis.analyze_data()
+    analysis.analyze_data()
 
-    #look back set up, look back = 1 can use auto regression task, e.g. arima
-    #look back>1 use rnn based method
+    # look back set up, look back = 1 can use auto regression task, e.g. arima
+    # look back>1 use rnn based method
     look_back = 3
+    # adjust to predict the next n time stamp
+    predict_time_stamp = 1
 
 
-
-    data = analysis.get_partial_data(start_date,start_test_date)
-    preprocessor = TimeSeriesPreprocessor(time_series_config, look_back=look_back)
+    data = analysis.get_partial_data(end=start_test_date)
+    preprocessor = TimeSeriesPreprocessor(time_series_config, look_back=look_back,predict_time_stamp=predict_time_stamp)
     preprocessor.fit(data)
     preprocessed_training_data, preprocessed_training_label = preprocessor.transform(data)
 
     # should specify the dimension here
-    input_dimension, output_dimension = 1, 1
+    input_dimension, output_dimension = 1, predict_time_stamp
     auto_ml = TimeSeriesAutoML()
 
     # auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
@@ -138,8 +147,39 @@ if __name__ == '__main__':
 
     auto_ml.run_experiments(preprocessed_training_data, preprocessed_training_label)
     train_result = auto_ml.train_result
-    test_prediction = []
+    train_predictions = train_result['GRU']['train_prediction']
+    train_predictions = preprocessor.inverse_transform_labels(train_predictions)
+    train_predictions = [int(i) for i in train_predictions]
+    n_groups = len(preprocessed_training_label)
+    n_train_sampels = len(train_predictions)/n_groups
 
+    result = {
+        'train':{},
+        'test':{}
+    }
+    start_index_train = 0
+    num_groups = len(preprocessed_training_label)
+    start_date_datetime = pd.to_datetime(start_date)
+    date_range_start = start_date_datetime + pd.DateOffset(days=look_back)
+
+    date_range = pd.date_range(start=date_range_start, end=start_test_date, freq='D')
+    result['train']['date_range'] = date_range
+    for i,(name,truth) in enumerate(preprocessed_training_label.items()):
+        train_truth = preprocessor.inverse_transform_labels(np.array(truth))
+        num_train = len(train_truth)
+        result['train'][name] = {
+            'prediction': train_predictions[start_index_train:start_index_train + num_train],
+            'truth': train_truth,
+            }
+        start_index_train += num_train
+
+    test_prediction = {}
+    start_date_datetime = pd.to_datetime(start_test_date)
+    start_test_date = start_date_datetime+pd.DateOffset(days=1)
+    date_range = pd.date_range(start=start_test_date, end=end_date, freq='D')
+
+    result['test'] = {name: {'prediction': [], 'truth': []} for name in preprocessed_training_label.keys()}
+    result['test']['date_range'] = date_range
     while cur_date<end_date:
         # read and process again, since new data is coming
         analysis.load_data(path)
@@ -153,13 +193,20 @@ if __name__ == '__main__':
         preprocessed_test_data, preprocessed_test_label = preprocessor.transform(test_data)
         auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
         test_result = auto_ml.test_result['GRU']['test_prediction']
-        test_prediction.append(preprocessor.inverse_transform_labels(test_result))
+
+        test_result = preprocessor.inverse_transform_labels(test_result)
+        test_result = [int(i) for i in test_result]
+        start_index_test = 0
+        for i, (name, truth) in enumerate(preprocessed_test_label.items()):
+            test_truth = preprocessor.inverse_transform_labels(np.array(truth))
+            num_train = len(test_truth)
+            result['test'][name]['prediction'].extend(test_result[start_index_test:start_index_test + num_train])
+            result['test'][name]['truth'].extend(test_truth)
+            start_index_test += num_train
         # Move to the next day
         cur_date += timedelta(days=1)
 
-    print(test_prediction)
-
-
+    print(result)
 
 
 
