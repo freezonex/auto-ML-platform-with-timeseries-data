@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import json
 from sklearn.metrics import mean_squared_error, f1_score,confusion_matrix
 from statsmodels.tsa.stattools import acf
 from abc import ABC, abstractmethod
@@ -16,25 +17,33 @@ from matplotlib.dates import DateFormatter, MonthLocator
 from datetime import datetime, timedelta
 
 class BaseConfig:
-    def __init__(self, task,group_by=None, label=None, excluded_features=None):
+    def __init__(self, path,task,group_by=None, label=None, excluded_features=None):
         self.group_by = group_by
         self.label = label
         self.excluded_features = excluded_features or []
         self.task = task
+        self.dataset_path = path
     def update_excluded_features(self, new_excluded_features):
         self.excluded_features.update(new_excluded_features)
 class TimeSeriesConfig(BaseConfig):
-    def __init__(self, timestamp_column, resample_rule=None, **kwargs):
+    def __init__(self, timestamp_column, resample_rule=None,start=None,start_test=None,end=None, **kwargs):
         super().__init__(**kwargs)
         self.timestamp_column = timestamp_column
         self.resample_rule = resample_rule  # 可选，用于定义重采样规则
+        self.start = start
+        self.start_test = start_test
+        self.end = end
 class DataAnalysisInterface(ABC):
     def __init__(self,config):
         self.config = config
         self.dataframe = None
         self.processed_dataframe = None
 
-    def load_data(self, filepath: str):
+    def load_data(self,path=None):
+        if path is None:
+            filepath = self.config.dataset_path
+        else:
+            filepath = path
         self.dataframe = pd.read_csv(filepath) if filepath.endswith('.csv') else pd.read_excel(filepath)
         self.processed_dataframe = deepcopy(self.dataframe)
         print(f'Loading data from {filepath}')
@@ -97,36 +106,37 @@ class TimeSeriesAnalysis(DataAnalysisInterface):
         analyzer.analyze_data()
 
 if __name__ == '__main__':
-    path = 'static/data/warehouse/train_data.csv'
-    time_series_config = TimeSeriesConfig(
-        task = 'warehouse',
-        timestamp_column='date',
-        label='next_day_storage',
-        group_by='warehouse_name'
-    )
     # time_series_config = TimeSeriesConfig(
-    #     task = 'nasa',
-    #     timestamp_column='time_in_cycles',
-    #     label='RUL',
-    #     group_by='engine_no',
-    #     excluded_features=['op_setting_3','sensor_16','sensor_19'],
+    #     task = 'warehouse',
+    #     timestamp_column='date',
+    #     label='next_day_storage',
+    #     group_by='warehouse_name',
+    #     start='2023-08-01',
+    #     start_test='2023-11-07',
+    #     end='2023-11-30',
+    #     path='static/data/warehouse/train_data.csv'
     # )
-    start_date = '2023-08-01'
-    start_test_date = '2023-11-07'
-
-    cur_date = datetime.strptime(start_test_date, '%Y-%m-%d')
-    end_date = '2023-11-30'
-    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    time_series_config = TimeSeriesConfig(
+        task = 'nasa',
+        timestamp_column='time_in_cycles',
+        label='RUL',
+        group_by='engine_no',
+        excluded_features=['op_setting_3','sensor_16','sensor_19'],
+        path='static/data/NASA/train_data.csv'
+    )
+    start_date = time_series_config.start
+    start_test_date = time_series_config.start_test
+    end_date = time_series_config.end
 
     analysis = TimeSeriesAnalysis(time_series_config)
-    analysis.load_data(path)
+    analysis.load_data()
     analysis.preprocess_data()
-    print(analysis.processed_dataframe.head())
-    analysis.analyze_data()
+
+    # analysis.analyze_data()#plot time series, auto-correlation and fft
 
     # look back set up, look back = 1 can use auto regression task, e.g. arima
     # look back>1 use rnn based method
-    look_back = 3
+    look_back = 20
     # adjust to predict the next n time stamp
     predict_time_stamp = 1
 
@@ -137,77 +147,114 @@ if __name__ == '__main__':
     preprocessed_training_data, preprocessed_training_label = preprocessor.transform(data)
 
     # should specify the dimension here
-    input_dimension, output_dimension = 1, predict_time_stamp
-    auto_ml = TimeSeriesAutoML()
+    input_dimension, output_dimension = preprocessor.num_features, predict_time_stamp
+    auto_ml = TimeSeriesAutoML(time_series_config)
 
     # auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
     auto_ml.add_model('GRU', GRUModel(input_dimension, output_dimension))
-    # auto_ml.add_model('TCN',BaseTCNModel(input_dimension,output_dimension))
+    auto_ml.add_model('TCN',BaseTCNModel(input_dimension,output_dimension))
     auto_ml.add_tuner('GridSearch', GridSearchTuner(num_folds=2))
 
     auto_ml.run_experiments(preprocessed_training_data, preprocessed_training_label)
-    train_result = auto_ml.train_result
-    train_predictions = train_result['GRU']['train_prediction']
-    train_predictions = preprocessor.inverse_transform_labels(train_predictions)
-    train_predictions = [int(i) for i in train_predictions]
-    n_groups = len(preprocessed_training_label)
-    n_train_sampels = len(train_predictions)/n_groups
+    # path = 'static/data/NASA/test_data.csv'
+    # analysis.load_data(path)
+    # analysis.preprocess_data()
+    #
+    # test_data = analysis.get_partial_data()
+    # preprocessed_test_data,preprocessed_test_label = preprocessor.transform(test_data)
+    #
+    # for key in preprocessed_test_data.keys():
+    #     preprocessed_test_data[key] = [preprocessed_test_data[key][-1]]
+    # auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
+    # test_result = auto_ml.test_result['GRU']['test_prediction']
+    # test_result = preprocessor.inverse_transform_labels(test_result)
+    # test_result = [int(i) for i in test_result]
+    # test_result = [1 if i<100 else 0 for i in test_result]
+    # data = {
+    #     'engine_no':list(range(len(test_result))),
+    #     'result':test_result
+    # }
+    #
+    # df = pd.DataFrame(data)
+    # df.to_csv('submission.csv',index=False)
 
-    result = {
-        'train':{},
-        'test':{}
-    }
-    start_index_train = 0
-    num_groups = len(preprocessed_training_label)
-    start_date_datetime = pd.to_datetime(start_date)
-    date_range_start = start_date_datetime + pd.DateOffset(days=look_back)
 
-    date_range = pd.date_range(start=date_range_start, end=start_test_date, freq='D')
-    result['train']['date_range'] = date_range
-    for i,(name,truth) in enumerate(preprocessed_training_label.items()):
-        train_truth = preprocessor.inverse_transform_labels(np.array(truth))
-        num_train = len(train_truth)
-        result['train'][name] = {
-            'prediction': train_predictions[start_index_train:start_index_train + num_train],
-            'truth': train_truth,
-            }
-        start_index_train += num_train
 
-    test_prediction = {}
-    start_date_datetime = pd.to_datetime(start_test_date)
-    start_test_date = start_date_datetime+pd.DateOffset(days=1)
-    date_range = pd.date_range(start=start_test_date, end=end_date, freq='D')
 
-    result['test'] = {name: {'prediction': [], 'truth': []} for name in preprocessed_training_label.keys()}
-    result['test']['date_range'] = date_range
-    while cur_date<end_date:
-        # read and process again, since new data is coming
-        analysis.load_data(path)
-        analysis.preprocess_data()
 
-        cur_start_test_date = cur_date + timedelta(days=1) - timedelta(days=look_back)
-        cur_start_test_date = cur_start_test_date.strftime('%Y-%m-%d')
-        cur_end_test_date = (cur_date+ timedelta(days=1)).strftime('%Y-%m-%d')
-
-        test_data = analysis.get_partial_data(cur_start_test_date, cur_end_test_date)
-        preprocessed_test_data, preprocessed_test_label = preprocessor.transform(test_data)
-        auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
-        test_result = auto_ml.test_result['GRU']['test_prediction']
-
-        test_result = preprocessor.inverse_transform_labels(test_result)
-        test_result = [int(i) for i in test_result]
-        start_index_test = 0
-        for i, (name, truth) in enumerate(preprocessed_test_label.items()):
-            test_truth = preprocessor.inverse_transform_labels(np.array(truth))
-            num_train = len(test_truth)
-            result['test'][name]['prediction'].extend(test_result[start_index_test:start_index_test + num_train])
-            result['test'][name]['truth'].extend(test_truth)
-            start_index_test += num_train
-        # Move to the next day
-        cur_date += timedelta(days=1)
-
-    print(result)
-
+    # train_result = auto_ml.train_result
+    # train_predictions = train_result['GRU']['train_prediction']
+    # train_predictions = preprocessor.inverse_transform_labels(train_predictions)
+    # train_predictions = [int(i) for i in train_predictions]
+    # n_groups = len(preprocessed_training_label)
+    # n_train_sampels = len(train_predictions)/n_groups
+    #
+    # result = {
+    #     'train':{},
+    #     'test':{}
+    # }
+    # start_index_train = 0
+    # num_groups = len(preprocessed_training_label)
+    # start_date_datetime = pd.to_datetime(start_date)
+    # date_range_start = start_date_datetime + pd.DateOffset(days=look_back)
+    #
+    # date_range = pd.date_range(start=date_range_start, end=start_test_date, freq='D')
+    # date_strings = date_range.format(formatter=lambda x: x.strftime('%Y-%m-%d'))
+    # result['train']['date_range'] = date_strings
+    # for i,(name,truth) in enumerate(preprocessed_training_label.items()):
+    #     train_truth = preprocessor.inverse_transform_labels(np.array(truth))
+    #     train_truth = np.squeeze(train_truth)
+    #     train_truth = train_truth.tolist()
+    #     train_truth = [int(i) for i in train_truth]
+    #     num_train = len(train_truth)
+    #     result['train'][name] = {
+    #         'prediction': train_predictions[start_index_train:start_index_train + num_train],
+    #         'truth': train_truth,
+    #         }
+    #     start_index_train += num_train
+    #
+    # test_prediction = {}
+    # start_date_datetime = pd.to_datetime(start_test_date)
+    # start_test_date = start_date_datetime+pd.DateOffset(days=1)
+    # date_range = pd.date_range(start=start_test_date, end=end_date, freq='D')
+    # date_strings = date_range.format(formatter=lambda x: x.strftime('%Y-%m-%d'))
+    # result['test'] = {name: {'prediction': [], 'truth': []} for name in preprocessed_training_label.keys()}
+    # result['test']['date_range'] = date_strings
+    # cur_date = datetime.strptime(start_test_date, '%Y-%m-%d')
+    # end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    # while cur_date<end_date:
+    #     # read and process again, since new data is coming
+    #     analysis.load_data()
+    #     analysis.preprocess_data()
+    #
+    #     cur_start_test_date = cur_date + timedelta(days=1) - timedelta(days=look_back)
+    #     cur_start_test_date = cur_start_test_date.strftime('%Y-%m-%d')
+    #     cur_end_test_date = (cur_date+ timedelta(days=1)).strftime('%Y-%m-%d')
+    #
+    #     test_data = analysis.get_partial_data(cur_start_test_date, cur_end_test_date)
+    #     preprocessed_test_data, preprocessed_test_label = preprocessor.transform(test_data)
+    #     auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
+    #     test_result = auto_ml.test_result['GRU']['test_prediction']
+    #
+    #     test_result = preprocessor.inverse_transform_labels(test_result)
+    #     test_result = [int(i) for i in test_result]
+    #     start_index_test = 0
+    #     for i, (name, truth) in enumerate(preprocessed_test_label.items()):
+    #         test_truth = preprocessor.inverse_transform_labels(np.array(truth))
+    #         num_train = len(test_truth)
+    #         test_truth = np.squeeze(test_truth,axis=-1)
+    #         test_truth = test_truth.tolist()
+    #         test_truth = [int(i) for i in test_truth]
+    #
+    #         result['test'][name]['prediction'].extend(test_result[start_index_test:start_index_test + num_train])
+    #         result['test'][name]['truth'].extend(test_truth)
+    #         start_index_test += num_train
+    #     # Move to the next day
+    #     cur_date += timedelta(days=1)
+    # os.makedirs(f'static/results/{time_series_config.task}', exist_ok=True)
+    # filename = f'static/results/{time_series_config.task}/predictions for {time_series_config.task}.json'
+    # with open(filename, 'w') as f:
+    #     json.dump(result, f, indent=4)
 
 
     # for model_name in train_result.keys():

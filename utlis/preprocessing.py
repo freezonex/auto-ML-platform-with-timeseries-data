@@ -14,13 +14,14 @@ class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
         self.task = config.task
         self.timestamp = config.timestamp_column
         self.predict_time_stamp = predict_time_stamp
+        self.num_features = None
 
     def fit(self, X, y=None):
         features = X.drop(columns=[self.label_col] if not self.group_col else [self.label_col,self.group_col] , errors='ignore')
         self.feature_scaler.fit(features)
         if self.label_col in X.columns:
             self.label_scaler.fit(X[[self.label_col]])
-        return self
+        self.num_features = len(features.columns)
 
     def transform(self, X):
         features_to_scale = X.drop(columns=[self.label_col] if not self.group_col else [self.label_col,self.group_col] , errors='ignore')
@@ -41,29 +42,35 @@ class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
     def _create_time_series_data(self, dataframe, features):
         data_dict = {}
         label_dict = {}
+        has_label = self.label_col in dataframe.columns
+
         if self.group_col:
-            for name,group in dataframe.groupby(self.group_col):
+            for name, group in dataframe.groupby(self.group_col):
                 data = []
                 label = []
                 for start_index in range(len(group) - self.look_back):
                     subset = group.iloc[start_index:start_index + self.look_back][features]
-                    sublabel = group.iloc[start_index + self.look_back-1][self.label_col]
                     data.append(subset)
-                    label.append(sublabel)
+                    if has_label:
+                        sublabel = group.iloc[start_index + self.look_back - 1][self.label_col]
+                        label.append(sublabel)
                 data_dict[name] = data
-                label_dict[name] = label
+                if has_label:
+                    label_dict[name] = label
         else:
             data = []
             label = []
             for start_index in range(len(dataframe) - self.look_back):
                 subset = dataframe.iloc[start_index:start_index + self.look_back][features]
-                sublabel = dataframe.iloc[start_index + self.look_back - 1][self.label_col]
                 data.append(subset)
-                label.append(sublabel)
+                if has_label:
+                    sublabel = dataframe.iloc[start_index + self.look_back - 1][self.label_col]
+                    label.append(sublabel)
             data_dict['no group'] = data
-            label_dict['no group'] = label
+            if has_label:
+                label_dict['no group'] = label
 
-        return data_dict,label_dict
+        return data_dict, label_dict if has_label else None
 
     def inverse_transform_labels(self, y_scaled):
         """Reverse the scaling of the label data."""

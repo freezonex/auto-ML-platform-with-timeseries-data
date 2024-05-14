@@ -276,16 +276,16 @@ param_grid = {
     'GRU':
 {
     'hidden_dim': [50],
-    'num_layers': [1],
+    'num_layers': [2],
     'lr': [0.01],
     'batch_size': [ 32],
     'epochs': [50]},
     'TCN':
 {
     'kernel_size':[3],
-    'num_channels': [[16,32,64]],
-    'lr': [0.01,],
-    'batch_size': [32],
-    'epochs': [50]},
+    'num_channels': [[16,32,64],[32,65,128]],
+    'lr': [0.01,0.001],
+    'batch_size': [64,128],
+    'epochs': [50,150]},
 
 }

@@ -74,9 +74,10 @@ class GridSearchTuner(Tuner):
 
 # Base AutoML Class: Abstract base class for automated machine learning workflows
 class AutoMLBase(ABC):
-    def __init__(self):
+    def __init__(self,config):
         """Initialize with data and labels.
         Use case: Forms the base for any AutoML system that automates the process of applying machine learning models to real-world tasks."""
+        self.config = config
         self.train_data = None
         self.train_label = None
         self.test_data = None
@@ -130,40 +131,61 @@ class TimeSeriesAutoML(AutoMLBase):
             best_score = float('inf')
             param = param_grid[name]
             for name_tuner, tuner in self.tuners.items():
-                model_class, score = tuner.optimize(model, param, train_data, train_label)
-                tuner.reset()
-                model_class.save(f'{name}_{name_tuner}_{score}_best.pth')
-                if score < best_score:
-                    best_score = score
-                    self.best_score[name] = score
-                    self.best_model[name] = f'{name}_{name_tuner}_{score}_best.pth'
+                if os.path.exists(f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth'):
+                    print(f'model exists, loading the best model for from checkpoint')
+                    model.load(f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth')
+                    train_loss = model.evaluate(self.train_data, self.train_label)
+                    self.best_score[name] = train_loss
+                    self.best_model[name] = f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth'
+                else:
+                    model_class, score = tuner.optimize(model, param, train_data, train_label)
+                    tuner.reset()
+                    model_class.save(f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth')
+                    if score < best_score:
+                        best_score = score
+                        self.best_score[name] = score
+                        self.best_model[name] = f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth'
+
                 train_prediction = model.predict(self.train_data)
                 self.train_result[name] = {
                     'train_loss': self.best_score[name],
                     'train_prediction': train_prediction
                 }
-    def evaluate(self, test_data, test_label):
-        """evaluation on train data and test data to give a result of the model, can be the best model or the
-        best model in each kind of model.
+
+    def evaluate(self, test_data, test_label=None):
+        """Evaluation on train data and test data to give a result of the model,
+        can be the best model or the best model in each kind of model.
         Use case: Provides a method to assess the effectiveness of models in making accurate predictions."""
         data = []
         label = []
+
         for key in test_data.keys():
             data.extend(np.array(test_data[key]))
-            label.extend(np.array(test_label[key]))
+            if test_label is not None:
+                label.extend(np.array(test_label[key]))
+
         test_data = np.array(data)
-        test_label = np.array(label)
         self.test_data = test_data
-        self.test_label = test_label
+
+        if test_label is not None:
+            test_label = np.array(label)
+            self.test_label = test_label
+
         for name, model in self.models.items():
             model.load(self.best_model[name])
-            test_loss = model.evaluate(self.test_data,self.test_label)
             test_prediction = model.predict(self.test_data)
+
+            if test_label is not None:
+                test_loss = model.evaluate(self.test_data, self.test_label)
+            else:
+                test_loss = None
 
             self.test_result[name] = {
                 'test_loss': test_loss,
                 'test_prediction': test_prediction
             }
+
+        return self.test_result
 
 
 
