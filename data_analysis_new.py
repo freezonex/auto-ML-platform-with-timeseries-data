@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
     # look back set up, look back = 1 can use auto regression task, e.g. arima
     # look back>1 use rnn based method
-    look_back = 20
+    look_back = 5
     # adjust to predict the next n time stamp
     predict_time_stamp = 1
 
@@ -151,32 +151,32 @@ if __name__ == '__main__':
     auto_ml = TimeSeriesAutoML(time_series_config)
 
     # auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
-    auto_ml.add_model('GRU', GRUModel(input_dimension, output_dimension))
+    # auto_ml.add_model('GRU', GRUModel(input_dimension, output_dimension))
     auto_ml.add_model('TCN',BaseTCNModel(input_dimension,output_dimension))
     auto_ml.add_tuner('GridSearch', GridSearchTuner(num_folds=2))
 
     auto_ml.run_experiments(preprocessed_training_data, preprocessed_training_label)
-    # path = 'static/data/NASA/test_data.csv'
-    # analysis.load_data(path)
-    # analysis.preprocess_data()
-    #
-    # test_data = analysis.get_partial_data()
-    # preprocessed_test_data,preprocessed_test_label = preprocessor.transform(test_data)
-    #
-    # for key in preprocessed_test_data.keys():
-    #     preprocessed_test_data[key] = [preprocessed_test_data[key][-1]]
-    # auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
-    # test_result = auto_ml.test_result['GRU']['test_prediction']
-    # test_result = preprocessor.inverse_transform_labels(test_result)
-    # test_result = [int(i) for i in test_result]
-    # test_result = [1 if i<100 else 0 for i in test_result]
-    # data = {
-    #     'engine_no':list(range(len(test_result))),
-    #     'result':test_result
-    # }
-    #
-    # df = pd.DataFrame(data)
-    # df.to_csv('submission.csv',index=False)
+    path = 'static/data/NASA/test_data.csv'
+    analysis.load_data(path)
+    analysis.preprocess_data()
+
+    test_data = analysis.get_partial_data()
+    preprocessed_test_data,preprocessed_test_label = preprocessor.transform(test_data)
+
+    for key in preprocessed_test_data.keys():
+        preprocessed_test_data[key] = [preprocessed_test_data[key][-1]]
+    auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
+    test_result = auto_ml.test_result['TCN']['test_prediction']
+    test_result = preprocessor.inverse_transform_labels(test_result)
+    test_result = [int(i) for i in test_result]
+    test_result = [1 if i<100 else 0 for i in test_result]
+    data = {
+        'engine_no':list(range(len(test_result))),
+        'result':test_result
+    }
+
+    df = pd.DataFrame(data)
+    df.to_csv('submission.csv',index=False)
 
 
 

@@ -1,13 +1,12 @@
 import pandas as pd
 import joblib
 import numpy as np
+import os
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
 
 class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self, config,feature_scaler=None, label_scaler=None, look_back=1,predict_time_stamp=1):
-        self.feature_scaler = feature_scaler if feature_scaler else MinMaxScaler()
-        self.label_scaler = label_scaler if label_scaler else MinMaxScaler()
         self.look_back = look_back
         self.group_col = config.group_by
         self.label_col = config.label
@@ -15,13 +14,33 @@ class TimeSeriesPreprocessor(BaseEstimator, TransformerMixin):
         self.timestamp = config.timestamp_column
         self.predict_time_stamp = predict_time_stamp
         self.num_features = None
-
+        os.makedirs(f'static/scaler/{self.task}', exist_ok=True)
+        if os.path.exists(f'static/scaler/{self.task}/feature.pkl'):
+            if os.path.exists(f'static/scaler/{self.task}/label.pkl'):
+                self.load_scalers(f'static/scaler/{self.task}/feature.pkl',
+                                                f'static/scaler/{self.task}/label.pkl')
+            else:
+                self.load_scalers(f'static/scaler/{self.task}/feature.pkl',
+                                  None)
+            print(f'loaded scalers for {self.task}')
+            self.loaded_scaler = True
+        else:
+            self.feature_scaler = feature_scaler if feature_scaler else MinMaxScaler()
+            self.label_scaler = label_scaler if label_scaler else MinMaxScaler()
+            self.loaded_scaler = False
     def fit(self, X, y=None):
         features = X.drop(columns=[self.label_col] if not self.group_col else [self.label_col,self.group_col] , errors='ignore')
-        self.feature_scaler.fit(features)
-        if self.label_col in X.columns:
-            self.label_scaler.fit(X[[self.label_col]])
         self.num_features = len(features.columns)
+
+        if not self.loaded_scaler:
+            self.feature_scaler.fit(features)
+            if self.label_col in X.columns:
+                self.label_scaler.fit(X[[self.label_col]])
+                self.save_scalers(f'static/scaler/{self.task}/feature.pkl',
+                                  f'static/scaler/{self.task}/label.pkl')
+            else:
+                self.save_scalers(f'static/scaler/{self.task}/feature.pkl',)
+
 
     def transform(self, X):
         features_to_scale = X.drop(columns=[self.label_col] if not self.group_col else [self.label_col,self.group_col] , errors='ignore')
