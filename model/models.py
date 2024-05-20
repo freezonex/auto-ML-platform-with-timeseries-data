@@ -155,7 +155,7 @@ class TCNBlock(nn.Module):
         return out
 
 class TemporalConvNet(nn.Module):
-    def __init__(self, input_dim, num_channels, kernel_size):
+    def __init__(self, input_dim,output_dim, num_channels, kernel_size):
         super().__init__()
         layers = []
         num_levels = len(num_channels)
@@ -169,7 +169,7 @@ class TemporalConvNet(nn.Module):
                          dilation,
                          padding))
         self.network = nn.Sequential(*layers)
-        self.linear = nn.Linear(num_channels[-1], 1)
+        self.linear = nn.Linear(num_channels[-1], output_dim)
 
     def forward(self, x):
         x = x.transpose(1, 2)  # Convert to (batch, channels, length)
@@ -192,7 +192,7 @@ class BaseTCNModel(Model):
     def set_params(self, lr=0.001, epochs=100, batch_size=32,num_channels=[16,32,64],kernel_size=3):
         self.num_channels = num_channels
         self.kernel_size = kernel_size
-        self.model = TemporalConvNet(self.input_dim,self.num_channels, self.kernel_size).cuda()
+        self.model = TemporalConvNet(self.input_dim,self.output_dim,self.num_channels, self.kernel_size).cuda()
         self.epochs = epochs
         self.batch_size = batch_size
         self.optimizer = Adam(self.model.parameters(), lr=lr)
@@ -207,8 +207,11 @@ class BaseTCNModel(Model):
             for inputs, labels in dataloader:
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = 0.5 * self.criterion(outputs, labels.unsqueeze(-1)) + 0.5 * nn.MSELoss()(outputs,
-                                                                                                labels.unsqueeze(-1))
+                if outputs.shape==labels.shape:
+                    loss = 0.5 * self.criterion(outputs, labels) + 0.5 * nn.MSELoss()(outputs,labels)
+                else:
+                    loss = 0.5 * self.criterion(outputs, labels.unsqueeze(-1)) + 0.5 * nn.MSELoss()(outputs,
+                                                                                                    labels.unsqueeze(-1))
                 loss.backward()
                 self.optimizer.step()
         del dataset,X,y,loss,outputs
@@ -375,9 +378,9 @@ class FreTS(Model):
         self.epochs = None
         self.batch_size = None
         self.optimizer = None
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.L1Loss()
 
-    def set_params(self, lr=0.001, epochs=100, batch_size=32,embed_size=128,hidden_size=256,channel_independence=False):
+    def set_params(self, lr=0.001, epochs=100, batch_size=32,embed_size=128,hidden_size=256,channel_independence='1'):
         self.embed_size = embed_size
         self.hidden_size = hidden_size
         self.channel_independence = channel_independence
@@ -397,7 +400,13 @@ class FreTS(Model):
             for inputs, labels in dataloader:
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels.unsqueeze(-1))
+                if outputs.dim() == labels.dim():
+                    loss = 0.5 * self.criterion(outputs, labels) + 0.5 * nn.MSELoss()(outputs, labels)
+                else:
+                    loss = 0.5 * self.criterion(outputs, labels.unsqueeze(-1)) + 0.5 * nn.MSELoss()(outputs,
+                                                                                                    labels.unsqueeze(
+                                                                                                        -1))
+
                 loss.backward()
                 self.optimizer.step()
 
@@ -436,7 +445,7 @@ class FreTS(Model):
 
                 # Forward pass
                 outputs = self.model(X_batch)
-                loss = self.criterion(outputs,
+                loss = nn.MSELoss()(outputs,
                                       y_batch).item()  # Use .item() to get the Python number from a tensor with one element
                 total_loss += loss
                 n_batches += 1
@@ -463,7 +472,7 @@ param_grid = {
     'num_layers': [1,2],
     'lr': [0.01],
     'batch_size': [ 32],
-    'epochs': [20,50]},
+    'epochs': [50]},
     'GRU':
 {
     'hidden_dim': [50],
@@ -473,17 +482,22 @@ param_grid = {
     'epochs': [50]},
     'TCN':
 {
-    'kernel_size':[4],
-    'num_channels': [[32,64,128]],
-    'lr': [0.01],
-    'batch_size': [64],
-    'epochs': [50]},
+    'kernel_size':[5,10,20],
+    'num_channels': [[32,64,128],[64,128,256]],
+    'lr': [0.0001],
+    'batch_size': [256],
+    'epochs': [10]},
     'FreTS':
 {
-    'channel_independence':[False],
-    'hidden_size': [256],
-    'embed_size': [128],
+    'channel_independence':['1'],
+    'hidden_size': [512,256],
+    'embed_size': [256,128],
     'lr': [0.0001,0.001],
     'batch_size': [256],
-    'epochs': [100,150]},
+    'epochs': [10,20,50]},
+    'ITransformer':
+{
+    'lr': [0.0001],
+    'batch_size': [256],
+    'epochs': [10,20]},
 }

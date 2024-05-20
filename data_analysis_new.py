@@ -26,13 +26,14 @@ class BaseConfig:
     def update_excluded_features(self, new_excluded_features):
         self.excluded_features.update(new_excluded_features)
 class TimeSeriesConfig(BaseConfig):
-    def __init__(self, timestamp_column, resample_rule=None,start=None,start_test=None,end=None, **kwargs):
+    def __init__(self, timestamp_column, resample_rule=None,start=None,start_test=None,end=None,include_label=True, **kwargs):
         super().__init__(**kwargs)
         self.timestamp_column = timestamp_column
         self.resample_rule = resample_rule  # 可选，用于定义重采样规则
         self.start = start
         self.start_test = start_test
         self.end = end
+        self.include_label = include_label
 class DataAnalysisInterface(ABC):
     def __init__(self,config):
         self.config = config

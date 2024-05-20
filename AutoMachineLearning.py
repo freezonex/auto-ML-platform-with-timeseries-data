@@ -122,9 +122,10 @@ class TimeSeriesAutoML(AutoMLBase):
         label = []
         for key in train_data.keys():
             data.extend(np.array(train_data[key]))
-            label.extend(np.array(train_label[key]))
+            label.extend(train_label[key])
         train_data = np.array(data)
-        train_label = np.array(label)
+        train_label = np.vstack(label)
+        print(train_label.shape)
         self.train_data = train_data
         self.train_label = train_label
         for name, model in self.models.items():
@@ -138,7 +139,7 @@ class TimeSeriesAutoML(AutoMLBase):
                     self.best_score[name] = train_loss
                     self.best_model[name] = f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth'
                 else:
-                    model_class, score = tuner.optimize(model, param, train_data, train_label)
+                    model_class, score = tuner.optimize(model, param, self.train_data, self.train_label)
                     tuner.reset()
                     model_class.save(f'static/checkpoint/{self.config.task}_{name}_{name_tuner}_best.pth')
                     if score < best_score:
